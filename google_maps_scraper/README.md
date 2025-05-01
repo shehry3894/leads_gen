@@ -46,17 +46,7 @@ Ensure you have the following installed:
 3. **Output**:
   The scraped data will be saved in an Excel file. The filename will be based on your search term             (e.g., "gyms_in_New_York.xlsx").
 
-## Dependencies
 
-1- selenium
-
-2- pandas
-
-3- requests
-
-4- webdriver-manager
-
-5- openpyxl
 
 **To install all dependencies, use**:
  ```bash
