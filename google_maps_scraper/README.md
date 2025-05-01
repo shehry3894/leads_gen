@@ -46,8 +46,6 @@ Ensure you have the following installed:
 3. **Output**:
   The scraped data will be saved in an Excel file. The filename will be based on your search term             (e.g., "gyms_in_New_York.xlsx").
 
-
-
 **To install all dependencies, use**:
  ```bash
      pip install -r requirements.txt
