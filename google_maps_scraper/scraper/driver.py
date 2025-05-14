@@ -8,13 +8,20 @@ from webdriver_manager.chrome import ChromeDriverManager
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def start_driver():
+def start_driver(headless=False):  # ✅ Added headless parameter
     try:
         options = Options()
-        options.add_argument("--start-maximized") 
-        # options.add_argument("--headless")  # Add this line for headless mode
+        if headless:
+            options.add_argument("--headless=new")  # ✅ Use `--headless=new` for modern Chrome
+            options.add_argument("--window-size=1920,1080")
+        else:
+            options.add_argument("--start-maximized")
+
         options.add_argument("--disable-gpu")
-        logger.info('Initializing ChromeDriver...')
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+
+        logger.info(f'Initializing ChromeDriver with headless={headless}...')
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
         logger.info('ChromeDriver initialized successfully.')

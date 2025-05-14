@@ -12,7 +12,7 @@ def zoom_out(driver):
     logger.info("Starting to zoom out on Google Maps.")
 
     try:
-        for i in range(5):
+        for i in range(3):
             zoom_out_button = driver.find_element(By.CSS_SELECTOR, "button[aria-label='Zoom out']")
             
             # Stop if the zoom out button is disabled

@@ -17,6 +17,7 @@ if __name__ == '__main__':
         query, max_results = get_user_inputs()
         logging.info(f'Searching for: {query}')
         search_maps(driver, query)
+
         scroll_results(driver, max_results)
 
         data = scrape_business_data(driver, max_results)
@@ -33,4 +34,3 @@ if __name__ == '__main__':
     finally:
         driver.quit()
         logging.info('Driver closed.')
-        
