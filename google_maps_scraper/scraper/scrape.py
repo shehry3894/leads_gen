@@ -14,10 +14,12 @@ from selenium.common.exceptions import TimeoutException
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def generate_whatsapp_link(phone_number):
-    if phone_number and phone_number != "N/A":
-        wa_number = phone_number.replace("+", "").replace(" ", "").replace("-", "")
-        return f"https://wa.me/{wa_number}"
-    return "N/A"
+    
+    if phone_number and phone_number != 'N/A':
+        wa_number = phone_number.replace('+', '').replace(' ', '').replace('-', '')
+        return f'https://wa.me/{wa_number}'
+    return 'N/A'
+
 
 def clean_emails(emails):
     cleaned = set()
@@ -27,10 +29,11 @@ def clean_emails(emails):
         email_lower = email.lower()
         if any(keyword in email_lower for keyword in dummy_keywords):
             continue
-        if re.fullmatch(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", email):
+        if re.fullmatch(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', email):
             cleaned.add(email_lower)
 
     return list(cleaned)
+
 
 def extract_social_and_email_links(website_url, retries=2, delay=3):
     social_links = {
@@ -46,7 +49,7 @@ def extract_social_and_email_links(website_url, retries=2, delay=3):
         'Emails': []
     }
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36'
     }
 
     patterns = {
@@ -77,7 +80,7 @@ def extract_social_and_email_links(website_url, retries=2, delay=3):
                 logging.info(f'Successfully scraped social and email links from {website_url}')
                 break
         except Exception as e:
-            logging.warning(f"Error scraping {website_url}: {str(e)}")
+            logging.warning(f'Error scraping {website_url}: {str(e)}')
             time.sleep(delay)
 
     return social_links
@@ -90,11 +93,11 @@ def scrape_business_data(driver, max_results):
 
     for i in range(len(results)):
         if max_results is not None and i >= max_results:
-            logging.info(f"Reached the max results limit: {max_results}")
+            logging.info(f'Reached the max results limit: {max_results}')
             break
         try:
             results = driver.find_elements(By.XPATH, '//div[contains(@class, "Nv2PK")]')
-            driver.execute_script("arguments[0].scrollIntoView();", results[i])
+            driver.execute_script('arguments[0].scrollIntoView();', results[i])
             time.sleep(1)
             results[i].click()
             time.sleep(3)
@@ -117,28 +120,28 @@ def scrape_business_data(driver, max_results):
             whatsapp_link = generate_whatsapp_link(phone)
 
             data.append({
-                "Name": name,
-                "Address": address,
-                "Phone": phone,
-                "WhatsApp": whatsapp_link,
-                "Website": website,
-                "Rating": rating,
-                "Facebook": social_links['Facebook'],
-                "Instagram": social_links['Instagram'],
-                "Twitter": social_links['Twitter'],
-                "LinkedIn": social_links['LinkedIn'],
-                "YouTube": social_links['YouTube'],
-                "Pinterest": social_links['Pinterest'],
-                "TikTok": social_links['TikTok'],
-                "Threads": social_links['Threads'],
-                "Snapchat": social_links['Snapchat'],
-                "Emails": ", ".join(social_links['Emails']),
-                "Scraped Time": scraped_time
+                'Name': name,
+                'Address': address,
+                'Phone': phone,
+                'WhatsApp': whatsapp_link,
+                'Website': website,
+                'Rating': rating,
+                'Facebook': social_links['Facebook'],
+                'Instagram': social_links['Instagram'],
+                'Twitter': social_links['Twitter'],
+                'LinkedIn': social_links['LinkedIn'],
+                'YouTube': social_links['YouTube'],
+                'Pinterest': social_links['Pinterest'],
+                'TikTok': social_links['TikTok'],
+                'Threads': social_links['Threads'],
+                'Snapchat': social_links['Snapchat'],
+                'Emails': ", ".join(social_links['Emails']),
+                'Scraped Time': scraped_time
             })
-            logging.info(f"Scraped {i+1}. Business: {name}")
+            logging.info(f'Scraped {i+1}. Business: {name}')
         except Exception as e:
-            logging.error(f"{i+1}. Failed to scrape business due to: {str(e)}")
+            logging.error(f'{i+1}. Failed to scrape business due to: {str(e)}')
             continue
 
-    logging.info(f"Scraping completed. Total businesses scraped: {len(data)}")
+    logging.info(f'Scraping completed. Total businesses scraped: {len(data)}')
     return data

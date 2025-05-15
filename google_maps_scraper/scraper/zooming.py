@@ -9,15 +9,15 @@ def zoom_out(driver):
     """
     Zooms out on Google Maps 5 times.
     """
-    logger.info("Starting to zoom out on Google Maps.")
+    logger.info('Starting to zoom out on Google Maps.')
 
     try:
         for i in range(3):
             zoom_out_button = driver.find_element(By.CSS_SELECTOR, "button[aria-label='Zoom out']")
             
             # Stop if the zoom out button is disabled
-            if "disabled" in zoom_out_button.get_attribute("class"):
-                logger.info(f"Zoom out button disabled at iteration {i+1}.")
+            if 'disabled' in zoom_out_button.get_attribute('class'):
+                logger.info(f'Zoom out button disabled at iteration {i+1}.')
                 break
 
             zoom_out_button.click()
@@ -39,9 +39,9 @@ def enable_update_results_checkbox(driver):
         
         checkbox = driver.find_element(By.XPATH, "//div[@class='DuI1J Hk4XGb fontBodyMedium']/button[@aria-checked]")
         
-        aria_checked = checkbox.get_attribute("aria-checked")
+        aria_checked = checkbox.get_attribute('aria-checked')
         
-        if aria_checked == "false":
+        if aria_checked == 'false':
         
             checkbox.click()
         

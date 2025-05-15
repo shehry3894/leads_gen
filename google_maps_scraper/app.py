@@ -23,12 +23,14 @@ def save_to_excel(data, query):
     pd.DataFrame(data).to_excel(filename, index=False)
     return filename
 
+
 def display_whatsapp_links(df):
     
     
     if 'WhatsApp' in df.columns:
         df['WhatsApp'] = df['WhatsApp'].apply(lambda x: f'<a href="{x}" target="_blank">{x}</a>' if x else "")
     return df
+
 
 def render_dataframe(df):
     
@@ -41,6 +43,7 @@ def render_dataframe(df):
     """, unsafe_allow_html=True)
     st.markdown(f"""<div style="overflow-x: auto">{df.to_html(escape=False, index=False)}</div>""", unsafe_allow_html=True)
 
+
 def get_query_and_limit():
     
     
@@ -51,6 +54,7 @@ def get_query_and_limit():
     if max_input and max_results is None and max_input.lower() != 'all':
         st.error('Please enter a valid number or "all".')
     return query, max_results
+
 
 def perform_scraping(query, max_results, headless=True):
     driver = start_driver(headless=headless)
@@ -64,6 +68,7 @@ def perform_scraping(query, max_results, headless=True):
         logging.info('Driver closed.')
     return data
 
+
 def handle_result_display(data, query, button_label='Download Excel'):
     filename = save_to_excel(data, query)
     st.success(f'Scraping completed. Data saved to {filename}')
@@ -73,8 +78,7 @@ def handle_result_display(data, query, button_label='Download Excel'):
     df = display_whatsapp_links(df)
     render_dataframe(df)
 
-
-# ========= Main Streamlit App =========
+    
 def main():
     st.title('Google Maps Business Scraper')
     st.sidebar.header("Options")
