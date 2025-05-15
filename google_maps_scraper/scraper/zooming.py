@@ -21,7 +21,7 @@ def zoom_out(driver):
                 break
 
             zoom_out_button.click()
-            logger.info(f'Zoomed out {i+1}/5 times.')
+            logger.info(f'Zoomed out {i+1}/3 times.')
             time.sleep(1.5)
         
         logger.info('Finished zooming out.')
