@@ -9,7 +9,7 @@ from scraper.scrape import scrape_business_data
 from io import BytesIO
 
 # Configure Streamlit and logging
-st.set_page_config(page_title="Google Maps Business Scraper", layout="wide")
+st.set_page_config(page_title='Google Maps Business Scraper', layout='wide')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
