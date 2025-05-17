@@ -8,6 +8,7 @@ from scraper.scroll import scroll_results
 from scraper.scrape import scrape_business_data
 from io import BytesIO
 
+
 # Configure Streamlit and logging
 st.set_page_config(page_title='Google Maps Business Scraper', layout='wide')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -69,28 +70,56 @@ def perform_scraping(query, max_results, headless=True):
     return data
 
 
-def handle_result_display(data, query, button_label='Download Excel'):
-    filename = save_to_excel(data, query)
-    st.success(f'Scraping completed. Data saved to {filename}')
-    st.download_button(button_label, filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+def handle_result_display(data, query, button_label='Prepare Download'):
+    df = pd.DataFrame(data)
     
-    df = pd.read_excel(filename)
-    df = display_whatsapp_links(df)
-    render_dataframe(df)
+    # Render clickable WhatsApp links in Streamlit
+    df_display = df.copy()
+    if 'WhatsApp' in df_display.columns:
+        df_display['WhatsApp'] = df_display['WhatsApp'].apply(
+            lambda x: f'<a href="{x}" target="_blank">{x}</a>' if pd.notna(x) else ''
+        )
+    render_dataframe(df_display)
 
+
+    # Prepare in-memory Excel file with clickable hyperlinks
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='Sheet1', index=False)
+        workbook = writer.book
+        worksheet = writer.sheets['Sheet1']
+
+        # Add actual hyperlink formatting to the WhatsApp column
+        if 'WhatsApp' in df.columns:
+            link_format = workbook.add_format({'font_color': 'blue', 'underline': 1})
+            whatsapp_col_idx = df.columns.get_loc('WhatsApp')
+            for row_num, link in enumerate(df['WhatsApp'], start=1):  # start=1 to skip header
+                if pd.notna(link):
+                    worksheet.write_url(row_num, whatsapp_col_idx, link, link_format, link)
+
+    excel_data = output.getvalue()
+
+    # Download button
+    st.download_button(
+        label='Download Excel File',
+        data=excel_data,
+        file_name=f'{query.replace(" ", "_")}.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    
     
 def main():
     st.title('Google Maps Business Scraper')
     st.sidebar.header("Options")
 
-    headless_mode = st.sidebar.checkbox('Run in headless mode', value=True)
+    
     scrape_option = st.sidebar.selectbox('Choose an option', ['Scrape New Data', 'Append to Existing Data'])
 
     if scrape_option == 'Scrape New Data':
         query, max_results = get_query_and_limit()
 
         if st.button('Start Scraping') and query:
-            data = perform_scraping(query, max_results, headless=headless_mode)
+            data = perform_scraping(query, max_results)
             handle_result_display(data, query)
 
     elif scrape_option == 'Append to Existing Data':
@@ -103,7 +132,7 @@ def main():
             query, max_results = get_query_and_limit()
 
             if st.button('Start Scraping') and query:
-                new_data = perform_scraping(query, max_results, headless=headless_mode)
+                new_data = perform_scraping(query, max_results)
                 df_new = pd.DataFrame(new_data)
                 df_combined = pd.concat([df_existing, df_new], ignore_index=True)
 
