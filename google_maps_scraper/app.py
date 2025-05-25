@@ -17,7 +17,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def save_to_excel(data, query):
     
-    
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
     filename = os.path.join(output_dir, f'{query.replace(" ", "_")}.xlsx')
@@ -57,13 +56,20 @@ def get_query_and_limit():
     return query, max_results
 
 
-def perform_scraping(query, max_results, headless=True):
+def perform_scraping(query, max_results, headless=True, progress_callback=None):
     driver = start_driver(headless=headless)
     try:
         logging.info(f'Searching for: {query}')
+        if progress_callback: progress_callback(0.1, 'Searching Google Maps...') 
         search_maps(driver, query)
+        
+        if progress_callback: progress_callback(0.4, 'Scrolling through results...') 
         scroll_results(driver, max_results)
+        
+        if progress_callback: progress_callback(0.7, 'Scraping business data...')   
         data = scrape_business_data(driver, max_results)
+        
+        if progress_callback: progress_callback(1.0, 'Scraping complete.')  
     finally:
         driver.quit()
         logging.info('Driver closed.')
@@ -75,10 +81,13 @@ def handle_result_display(data, query, button_label='Prepare Download'):
     
     # Render clickable WhatsApp links in Streamlit
     df_display = df.copy()
-    if 'WhatsApp' in df_display.columns:
-        df_display['WhatsApp'] = df_display['WhatsApp'].apply(
-            lambda x: f'<a href="{x}" target="_blank">{x}</a>' if pd.notna(x) else ''
-        )
+    
+    for col in df_display.columns:
+        if df_display[col].dtype == 'object' and df_display[col].str.startswith('http').any():
+            df_display[col] = df_display[col].apply(
+                lambda x: f'<a href="{x}" target="_blank">{x}</a>' if pd.notna(x) and str(x).startswith('http') else ''
+            )
+
     render_dataframe(df_display)
 
 
@@ -88,14 +97,15 @@ def handle_result_display(data, query, button_label='Prepare Download'):
         df.to_excel(writer, sheet_name='Sheet1', index=False)
         workbook = writer.book
         worksheet = writer.sheets['Sheet1']
+        
+        link_format = workbook.add_format({'font_color': 'blue', 'underline': 1})
 
-        # Add actual hyperlink formatting to the WhatsApp column
-        if 'WhatsApp' in df.columns:
-            link_format = workbook.add_format({'font_color': 'blue', 'underline': 1})
-            whatsapp_col_idx = df.columns.get_loc('WhatsApp')
-            for row_num, link in enumerate(df['WhatsApp'], start=1):  # start=1 to skip header
-                if pd.notna(link):
-                    worksheet.write_url(row_num, whatsapp_col_idx, link, link_format, link)
+        for col in df.columns:
+            if df[col].dtype == 'object' and df[col].str.startswith('http').any():
+                col_idx = df.columns.get_loc(col)
+                for row_num, val in enumerate(df[col], start=1):
+                    if pd.notna(val) and str(val).startswith('http'):
+                        worksheet.write_url(row_num, col_idx, val, link_format, val)
 
     excel_data = output.getvalue()
 
@@ -103,7 +113,7 @@ def handle_result_display(data, query, button_label='Prepare Download'):
     st.download_button(
         label='Download Excel File',
         data=excel_data,
-        file_name=f'{query.replace(" ", "_")}.xlsx',
+        file_name=f'{query.replace(' ', '_')}.xlsx',
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     
@@ -115,13 +125,24 @@ def main():
     
     scrape_option = st.sidebar.selectbox('Choose an option', ['Scrape New Data', 'Append to Existing Data'])
 
+    def update_progress(pct, msg):
+        progress_bar.progress(pct)
+        status_text.text(msg)
+    
     if scrape_option == 'Scrape New Data':
         query, max_results = get_query_and_limit()
 
         if st.button('Start Scraping') and query:
-            data = perform_scraping(query, max_results)
+             # Progress UI elements
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            data = perform_scraping(query, max_results, progress_callback=update_progress)
             handle_result_display(data, query)
 
+            status_text.text("✅ Finished successfully.")
+            progress_bar.empty()
+            
     elif scrape_option == 'Append to Existing Data':
         uploaded_file = st.file_uploader('Upload an existing file', type=['xlsx'])
         if uploaded_file:
@@ -132,12 +153,19 @@ def main():
             query, max_results = get_query_and_limit()
 
             if st.button('Start Scraping') and query:
-                new_data = perform_scraping(query, max_results)
+                
+                # Progress UI elements
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                new_data = perform_scraping(query, max_results, progress_callback=update_progress)
                 df_new = pd.DataFrame(new_data)
                 df_combined = pd.concat([df_existing, df_new], ignore_index=True)
 
                 handle_result_display(df_combined, query, 'Download Updated Excel')
 
+                status_text.text("✅ Updated file ready.")
+                progress_bar.empty()
 
 if __name__ == '__main__':
     main()
