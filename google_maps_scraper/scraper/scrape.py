@@ -108,8 +108,8 @@ def scrape_business_data(driver, max_results):
             website = driver.find_element(By.XPATH, '//a[contains(@data-item-id,"authority")]').get_attribute('href') if driver.find_elements(By.XPATH, '//a[contains(@data-item-id,"authority")]') else "N/A"
             phone = driver.find_element(By.XPATH, "//button[contains(@data-item-id,'phone')]//div[@class='rogA2c ']/div[1]").text if driver.find_elements(By.XPATH, "//button[contains(@data-item-id,'phone')]//div[@class='rogA2c ']/div[1]") else "N/A"
             rating = driver.find_element(By.XPATH, '(//div[contains(@class,"F7nice ")]/span/span)[1]').text if driver.find_elements(By.XPATH, '(//div[contains(@class,"F7nice ")]/span/span)[1]') else "N/A"
+            short_link = driver.current_url  # Get current Google Maps short URL
 
-            
             social_links = extract_social_and_email_links(website) if website != "N/A" else {
                 'Facebook': None, 'Instagram': None, 'Twitter': None, 'LinkedIn': None,
                 'YouTube': None, 'Pinterest': None, 'TikTok': None, 'Threads': None,
@@ -121,6 +121,7 @@ def scrape_business_data(driver, max_results):
 
             data.append({
                 'Name': name,
+                'Google Maps Link': short_link,
                 'Address': address,
                 'Phone': phone,
                 'WhatsApp': whatsapp_link,
@@ -137,6 +138,7 @@ def scrape_business_data(driver, max_results):
                 'Snapchat': social_links['Snapchat'],
                 'Emails': ", ".join(social_links['Emails']),
                 'Scraped Time': scraped_time
+                
             })
             logging.info(f'Scraped {i+1}. Business: {name}')
         except Exception as e:

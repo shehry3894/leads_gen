@@ -1,3 +1,55 @@
+# --- FIX FOR PYINSTALLER METADATA ISSUES ---
+import sys
+import os
+
+# Disable pip version checks
+os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+
+# Workaround for PyInstaller metadata issue
+if getattr(sys, 'frozen', False):
+    # Monkey-patch importlib.metadata
+    import importlib.metadata
+    import types
+    
+    # Create patched version function
+    def _patched_version(package_name):
+        if package_name == 'streamlit':
+            return "1.45.1"  # Replace with your actual Streamlit version
+        try:
+            return importlib.metadata.version(package_name)
+        except importlib.metadata.PackageNotFoundError:
+            return "0.0.0"
+    
+    # Apply the patch
+    importlib.metadata.version = _patched_version
+    
+    # Set fake distribution for Streamlit
+    class FakeDistribution:
+        def __init__(self):
+            self.metadata = {'Name': 'streamlit', 'Version': '1.45.1'}
+        
+        def read_text(self, filename):
+            return None
+    
+    # Monkey-patch distribution
+    def _patched_distribution(package_name):
+        if package_name == 'streamlit':
+            return FakeDistribution()
+        return importlib.metadata.distribution(package_name)
+    
+    importlib.metadata.distribution = _patched_distribution
+    sys.modules['importlib.metadata'] = importlib.metadata
+
+# Set Streamlit environment variables
+os.environ["STREAMLIT_RUNNING_IN_PYINSTALLER"] = "true"
+os.environ["STREAMLIT_SERVER_ENABLE_STATIC"] = "true"
+os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
+# --- END FIX ---
+
+
+
+
+
 import streamlit as st
 import pandas as pd
 import os
@@ -11,6 +63,7 @@ from scraper.scrape import scrape_business_data
 # --- Streamlit and Logging Configuration ---
 st.set_page_config(page_title='Google Maps Business Scraper', layout='wide')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 
 # --- Utilities ---
@@ -136,4 +189,5 @@ def main():
 
 
 if __name__ == '__main__':
+    
     main()
