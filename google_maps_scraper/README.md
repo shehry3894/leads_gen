@@ -49,5 +49,18 @@ Ensure you have the following installed:
 **To install all dependencies, use**:
  ```bash
      pip install -r requirements.txt
+  ```
+
+
+### RUN via docker
+1. Build the image
+``` bash
+docker build . -t leads_gen
+```
+2. Run the image
+```bash
+docker run -p 8501:8501 leads_gen
+```
+2. Visit http://localhost:8501/
 
 
