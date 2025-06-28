@@ -3,6 +3,9 @@ import logging
 # Configure logging for this module
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Add headless mode configuration
+HEADLESS_MODE = True  # ✅ Change to False when debugging with browser
+
 def get_user_inputs():
     logging.info('Prompting user for search term and max results.')
     
