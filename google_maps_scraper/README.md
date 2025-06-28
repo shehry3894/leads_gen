@@ -25,13 +25,21 @@ It supports both:
 google_maps_scraper/
 │
 ├── input/ # User input and config
+
 ├── scraper/ # Scraping modules (driver, scroll, zooming, etc.)
+
 ├── output/ # Saved Excel results
+
 ├── app.py # Streamlit app
+
 ├── main.py # CLI script
+
 ├── Dockerfile # Docker container config
+
 ├── requirements.txt # Python dependencies
+
 ├── environment.yml # (optional Conda environment)
+
 └── README.md # You’re reading it 🙂
 
 ---
