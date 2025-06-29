@@ -1,11 +1,12 @@
+import pandas as pd
+import logging
+import os
 from scraper.driver import start_driver
 from scraper.search import search_maps
 from scraper.scroll import scroll_results
 from scraper.scrape import scrape_business_data
-from input.config import get_user_inputs
-import pandas as pd
-import logging
-import os
+
+from input.config import get_user_inputs, HEADLESS_MODE
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

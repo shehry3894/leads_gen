@@ -1,13 +1,21 @@
 import time
 import logging
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
+from input.config import TRIAL
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
 def scroll_results(driver, max_results):
+    if TRIAL:
+        max_results = 3
+        logging.info(f'Setting max results to {max_results} since you are using trial version')
+
     logging.info('Starting the scroll process.')
 
     try:
@@ -20,7 +28,6 @@ def scroll_results(driver, max_results):
         collected = 0
         same_count_retries = 0
         max_retries = 5
-        
 
         while True:
             # Scroll to bottom of scrollable_div

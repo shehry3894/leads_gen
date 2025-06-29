@@ -10,7 +10,8 @@ if getattr(sys, 'frozen', False):
     # Monkey-patch importlib.metadata
     import importlib.metadata
     import types
-    
+
+
     # Create patched version function
     def _patched_version(package_name):
         if package_name == 'streamlit':
@@ -19,24 +20,28 @@ if getattr(sys, 'frozen', False):
             return importlib.metadata.version(package_name)
         except importlib.metadata.PackageNotFoundError:
             return "0.0.0"
-    
+
+
     # Apply the patch
     importlib.metadata.version = _patched_version
-    
+
+
     # Set fake distribution for Streamlit
     class FakeDistribution:
         def __init__(self):
             self.metadata = {'Name': 'streamlit', 'Version': '1.45.1'}
-        
+
         def read_text(self, filename):
             return None
-    
+
+
     # Monkey-patch distribution
     def _patched_distribution(package_name):
         if package_name == 'streamlit':
             return FakeDistribution()
         return importlib.metadata.distribution(package_name)
-    
+
+
     importlib.metadata.distribution = _patched_distribution
     sys.modules['importlib.metadata'] = importlib.metadata
 
@@ -47,14 +52,11 @@ os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 # --- END FIX ---
 
 
-
-
-
 import streamlit as st
 import pandas as pd
-import os
 import logging
 from io import BytesIO
+
 from scraper.driver import start_driver
 from scraper.search import search_maps
 from scraper.scroll import scroll_results
@@ -63,7 +65,6 @@ from scraper.scrape import scrape_business_data
 # --- Streamlit and Logging Configuration ---
 st.set_page_config(page_title='Google Maps Business Scraper', layout='wide')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 
 
 # --- Utilities ---
@@ -79,6 +80,8 @@ def get_query_and_limit():
 
 def perform_scraping(query, max_results, headless=True, progress_callback=None):
     driver = start_driver(headless=headless)
+
+    st.info("⚠️ Scraping 3 results only as you are using trial version")
     try:
         if progress_callback: progress_callback(0.1, 'Searching Google Maps...')
         search_maps(driver, query)
@@ -112,7 +115,8 @@ def render_dataframe(df):
             th, td { padding: 4px 8px !important; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
         </style>
     """, unsafe_allow_html=True)
-    st.markdown(f"""<div style="overflow-x: auto">{df.to_html(escape=False, index=False)}</div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="overflow-x: auto">{df.to_html(escape=False, index=False)}</div>""",
+                unsafe_allow_html=True)
 
 
 def create_excel_with_links(df):
@@ -154,6 +158,7 @@ def main():
         progress_bar.progress(pct)
         status_text.text(msg)
 
+    info_text = st.empty()
     if scrape_option == 'Scrape New Data':
         query, max_results = get_query_and_limit()
 
@@ -189,5 +194,4 @@ def main():
 
 
 if __name__ == '__main__':
-    
     main()
