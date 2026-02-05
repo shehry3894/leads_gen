@@ -1,75 +1,140 @@
-# Google Maps Scraper
+# 📍 Google Maps Scraper & Lead Generator
 
-This Python project is a web scraper for Google Maps. It extracts business information such as name, address, phone number, website, ratings, and social media links from Google Maps results. It also allows users to input search queries, define a limit for the number of results, and save the scraped data to an Excel file.
+A comprehensive Python-based web scraper designed to extract business intelligence from Google Maps. This tool automates the process of finding business details, contact information, and social media presence, saving the results directly to Excel.
 
-## Features
-- Search for businesses on Google Maps based on user-provided queries (e.g., "gyms in New York").
-- Automatically scroll through search results and scrape business data.
-- Extract social media links and emails from business websites.
-- Save scraped data in an Excel file for further analysis or use.
+## 🚀 Features
 
-## Installation
+* **Multi-Interface:** Choose between a simple Command Line (CLI) or a modern Streamlit Web UI.
+* **Deep Data Extraction:** Scrapes name, address, phone number, website, and ratings.
+* **Contact Discovery:** Automatically crawls business websites to find email addresses and social media links (LinkedIn, Facebook, Instagram, etc.).
+* **Custom Limits:** Define exactly how many leads you want to collect.
+* **Automated Export:** Generates clean, formatted `.xlsx` files automatically.
+* **Docker Ready:** Easily containerized for consistent deployment.
+
+---
+
+## 🛠️ Installation
 
 ### Prerequisites
-Ensure you have the following installed:
-- Python 3.x
-- pip (Python package manager)
+* Python 3.11 or higher
+* Google Chrome installed (for Selenium)
+* [`uv` (Python package manager)](https://docs.astral.sh/uv/)
 
-### Steps
+#### Install uv
 
-1. **Install dependencies: Create a virtual environment (optional but recommended)**:
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+irm https://astral.sh/uv/install.ps1 | iex
+```
+
+### Steps (using uv – recommended)
+1. **Clone the repository** and navigate to the project folder.
+2. **Create and sync a virtual environment with uv:**
+
+```bash
+uv sync
+```
+
+This will create a `.venv` and install all dependencies from `pyproject.toml`.
+
+3. **Activate the environment:**
+
+```bash
+# macOS / Linux
+source .venv/bin/activate
+
+# Windows (PowerShell)
+.venv\Scripts\activate
+```
+
+### Legacy steps (pip + venv)
+You can still use the older workflow if needed:
+
 ```bash
 python -m venv venv
-```
 
-2. Activate the env 
-
-MacOS / Linux
-```bash
-source venv/bin/activate  
-```
-Windows
-```bash
+# Windows
 venv\Scripts\activate
-```
 
-3. Install the required libraries:
-```bash
+# macOS / Linux
+source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
+
+
 ---
-## Usage
 
-### as cli
+## 💻 Usage
 
-1. **Run the script**:
-```bash
-python main.py
-```
+### 1. Web Interface (Recommended)
 
-### via UI
+Launch a user-friendly dashboard in your browser:
+
 ```bash
 python -m streamlit run app.py
+
 ```
 
-2. **Enter search query**:
-  You will be prompted to enter a search term (e.g., "gyms in New York") and specify the number of businesses you want to scrape (or leave blank for no limit).
+### 2. Command Line Interface
 
-3. **Output**:
-  The scraped data will be saved in an Excel file in the output dir. 
-4. The filename will be based on your search term             (e.g., "gyms_in_New_York.xlsx").
+Run the script directly in your terminal:
 
-
-### RUN via docker
-1. Build the image
-``` bash
-docker build . -t leads_gen
-```
-2. Run the image
 ```bash
-docker run -p 8501:8501 leads_gen
+python main.py
+
 ```
-2. Visit http://localhost:8501/
 
+* Follow the prompts to enter your search query (e.g., "Dental clinics in London").
+* Results will be saved in the `output/` directory.
 
+### 3. Docker
+
+To run without local Python configuration:
+
+```bash
+docker build . -t leads_gen
+docker run -p 8501:8501 leads_gen
+
+```
+
+Access the UI at `http://localhost:8501`.
+
+---
+
+## 📦 Creating a Standalone Executable
+
+If you need to build a portable `.exe` for Windows, use the following command (requires `streamlit-desktop-app`):
+
+```bash
+streamlit-desktop-app build app.py --name leads_gen --pyinstaller-options --onefile \
+--clean \
+--console \
+--paths ./ \
+--hidden-import scraper \
+--hidden-import utils \
+--add-data "scraper:scraper" \
+--add-data "utils:utils" \
+--add-data "input:input" \
+--collect-all streamlit \
+--collect-all openpyxl \
+--collect-all pandas \
+--collect-all requests \
+--collect-all selenium \
+--collect-all webdriver_manager \
+--collect-all xlsxwriter
+```
+
+---
+
+## 📂 Project Structure
+
+* `main.py`: Entry point for CLI usage.
+* `app.py`: Entry point for the Streamlit UI.
+* `scraper/`: Contains the Selenium logic for Google Maps interaction.
+* `utils/`: Contains logic for website crawling and social link extraction.
+* `output/`: Default folder for your generated Excel leads.

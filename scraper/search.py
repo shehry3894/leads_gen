@@ -6,13 +6,27 @@ from selenium.webdriver.common.keys import Keys
 
 logger = logging.getLogger(__name__)
 
+import time
+from selenium.webdriver.common.keys import Keys
+
+
+def set_browser_zoom(driver):
+    zoom_levels = [90, 80, 75, 67]
+
+    for zoom_level in zoom_levels:
+        driver.execute_script(f"document.body.style.zoom='{zoom_level}%'")
+        time.sleep(0.3)
+
 
 def search_maps(driver, query):
     try:
         logger.info(f'Searching for: {query} on Google Maps')
 
         driver.get('https://www.google.com/maps')
-        time.sleep(3)
+
+        time.sleep(5)  # wait for Maps to fully load
+
+        set_browser_zoom(driver)
 
         search_box = driver.find_element(By.ID, 'searchboxinput')
         search_box.send_keys(query)
@@ -24,8 +38,6 @@ def search_maps(driver, query):
         enable_update_results_checkbox(driver)
 
         time.sleep(1.5)  # Wait for the map to load
-
-        zoom_out(driver)  # Call zoom function 
 
 
     except Exception as e:

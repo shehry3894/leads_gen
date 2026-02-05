@@ -1,6 +1,11 @@
 # --- FIX FOR PYINSTALLER METADATA ISSUES ---
-import sys
 import os
+import sys
+import subprocess
+import time
+from pathlib import Path
+
+from input.config import TESTING, TRIAL
 
 # Disable pip version checks
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
@@ -61,10 +66,67 @@ from scraper.driver import start_driver
 from scraper.search import search_maps
 from scraper.scroll import scroll_results
 from scraper.scrape import scrape_business_data
+from utils.logging_utils import configure_file_logging
+from utils.demo_data import get_demo_leads
+from utils.paths import get_ui_output_dir
+from utils.data_normalization import process_scraped_data
+from version import __version__, __app_name__
+
+import sys
 
 # --- Streamlit and Logging Configuration ---
 st.set_page_config(page_title='Google Maps Business Scraper', layout='wide')
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Configure logging ONCE per session (not on every rerun)
+if "log_file_path" not in st.session_state:
+    st.session_state.log_file_path = configure_file_logging()
+
+LOG_FILE_PATH = st.session_state.log_file_path
+OUTPUT_DIR = get_ui_output_dir()
+
+if "output_dir" not in st.session_state:
+    st.session_state.output_dir = OUTPUT_DIR
+
+if "scraped_df" not in st.session_state:
+    st.session_state.scraped_df = None
+
+if "query" not in st.session_state:
+    st.session_state.query = None
+
+if "is_scraping" not in st.session_state:
+    st.session_state.is_scraping = False
+
+if "workflow_locked" not in st.session_state:
+    st.session_state.workflow_locked = False
+
+logger = logging.getLogger("leads_gen")
+
+def log_once(key: str, level: str, msg: str, *args):
+    """
+    Log a message only once per session for a given key.
+    This helps avoid noisy duplicates caused by Streamlit reruns.
+    """
+    # Use a list to keep things JSON-serializable for Streamlit session_state
+    if "_logged_keys" not in st.session_state:
+        st.session_state._logged_keys = []
+
+    cache = st.session_state._logged_keys
+    if key in cache:
+        return
+    cache.append(key)
+    if level == "info":
+        logger.info(msg, *args)
+    elif level == "warning":
+        logger.warning(msg, *args)
+    elif level == "error":
+        logger.error(msg, *args)
+    else:
+        logger.log(logging.INFO, msg, *args)
+
+# Only log app start once per browser session
+if "logged_start" not in st.session_state:
+    log_once("app_started", "info", "%s v%s started (UI mode). Logs: %s", __app_name__, __version__, LOG_FILE_PATH)
+    st.session_state.logged_start = True
 
 
 # --- Utilities ---
@@ -75,25 +137,55 @@ def get_query_and_limit():
 
     if max_input and max_results is None and max_input.lower() != 'all':
         st.error('Please enter a valid number or "all".')
+        log_once(f"invalid_max:{max_input}", "warning", "Invalid max results input: %s", max_input)
+    log_once(
+        f"query:{query}|max:{max_results if max_results is not None else 'all'}",
+        "info",
+        "User input: query=%r, max_results=%s",
+        query,
+        max_results if max_results is not None else "all",
+    )
     return query, max_results
 
 
 def perform_scraping(query, max_results, headless=True, progress_callback=None):
+    if TESTING:
+        st.info("⚠️ Testing Enabled!")
+        for i in range(10):
+            time.sleep(0.2)
+            progress_callback(i / 10, 'Scarping...')
+
+        demo = get_demo_leads()
+        logger.info("TESTING=True, using demo leads instead of live scraping (rows=%s)", len(demo))
+        return demo
+
+    logger.info("Initializing WebDriver (headless=%s) for query=%r, max_results=%s",
+                headless, query, max_results if max_results is not None else "all")
     driver = start_driver(headless=headless)
 
-    st.info("⚠️ Scraping 3 results only as you are using trial version")
+    if TRIAL:
+        st.info("⚠️ Scraping 3 results only as you are using trial version")
     try:
         if progress_callback: progress_callback(0.1, 'Searching Google Maps...')
+        logger.info("Starting search in Google Maps for query=%r", query)
         search_maps(driver, query)
 
         if progress_callback: progress_callback(0.4, 'Scrolling through results...')
+        logger.info("Starting scroll through results (max_results=%s)",
+                    max_results if max_results is not None else "all")
         scroll_results(driver, max_results)
 
         if progress_callback: progress_callback(0.7, 'Scraping business data...')
+        logger.info("Starting scrape of business data")
         data = scrape_business_data(driver, max_results)
+        logger.info("Scraping complete. Rows scraped: %s", len(data) if data is not None else 0)
 
         if progress_callback: progress_callback(1.0, 'Scraping complete.')
+    except Exception as e:
+        logger.exception("Error during scraping run: %s", e)
+        raise
     finally:
+        logger.info("Shutting down WebDriver")
         driver.quit()
     return data
 
@@ -101,10 +193,19 @@ def perform_scraping(query, max_results, headless=True, progress_callback=None):
 def render_clickable_links(df):
     df_display = df.copy()
     for col in df_display.columns:
-        if df_display[col].dtype == 'object' and df_display[col].str.contains('http', na=False).any():
-            df_display[col] = df_display[col].apply(
-                lambda x: f'<a href="{x}" target="_blank">{x}</a>' if pd.notna(x) and str(x).startswith('http') else ''
-            )
+        # Check if column contains any HTTP links
+        # Use try-except to handle cases where .str accessor might fail
+        try:
+            if df_display[col].dtype == 'object':
+                # Convert to string type first to ensure .str accessor works
+                col_as_str = df_display[col].astype(str)
+                if col_as_str.str.contains('http', na=False, case=False).any():
+                    df_display[col] = df_display[col].apply(
+                        lambda x: f'<a href="{x}" target="_blank">{x}</a>' if pd.notna(x) and str(x).startswith('http') else x
+                    )
+        except (AttributeError, TypeError):
+            # If we can't process the column, just skip it
+            continue
     return df_display
 
 
@@ -136,61 +237,305 @@ def create_excel_with_links(df):
     return output.getvalue()
 
 
-def handle_result_display(df, query):
+def start_scraping_callback():
+    st.session_state.is_scraping = True
+    st.session_state.workflow_locked = True
+
+
+def open_folder(path: str):
+    abs_path = os.path.abspath(str(path))
+
+    # Debugging: This will show up in your terminal/command prompt
+    print(f"DEBUG: open_folder called for {abs_path}")
+
+    if not path.exists():
+        raise st.error(f"Folder does not exist: {path}")
+
+    if sys.platform.startswith("darwin"):  # macOS
+        subprocess.Popen(["open", path])
+    elif sys.platform.startswith("win"):  # Windows
+        os.startfile(path)
+    elif sys.platform.startswith("linux"):  # Linux
+        subprocess.Popen(["xdg-open", path])
+    else:
+        raise RuntimeError("Unsupported OS")
+
+
+def handle_result_display(df):
     render_dataframe(render_clickable_links(df))
-    excel_data = create_excel_with_links(df)
-    st.download_button(
-        label='Download Excel File',
-        data=excel_data,
-        file_name=f'{query.replace(" ", "_")}.xlsx',
-        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
+
+
+def save_excel(df, file_path):
+    # df = create_excel_with_links(df)
+    if not os.path.exists(st.session_state.output_dir):
+        st.info('{st.session_state.output_dir} does not exist! Creating dir...')
+        st.session_state.output_dir.mkdir(exist_ok=True)
+    df.to_excel(file_path, index=False)
 
 
 # --- Main Application ---
 def main():
-    st.title('Google Maps Business Scraper')
-    st.sidebar.header("Options")
+    st.title('Business Leads Generator')
 
-    scrape_option = st.sidebar.selectbox('Choose an option', ['Scrape New Data', 'Append to Existing Data'])
+    # --- Sidebar: high-level workflow selection ---
+    st.sidebar.header("Workflow")
+    st.sidebar.markdown(
+        "- **Start fresh**: create a brand new Excel file from a new search query.\n"
+        "- **Append to existing**: add new leads into an existing Excel file you already have."
+    )
 
-    def update_progress(pct, msg):
+    mode_options = {
+        "Start fresh (new Excel file)": "new",
+        "Append to existing Excel file": "append",
+    }
+    selected_mode_label = st.sidebar.radio(
+        "What would you like to do?",
+        list(mode_options.keys()),
+        index=0,
+        disabled=st.session_state.workflow_locked,
+    )
+    scrape_option = mode_options[selected_mode_label]
+    log_once(f"mode:{scrape_option}", "info", "User selected workflow mode: %s", scrape_option)
+    
+    # Show message when workflow is locked
+    if st.session_state.workflow_locked:
+        st.sidebar.info("🔒 Workflow locked. Refresh your browser to change modes.")
+
+    # Placeholders for progress feedback, reused in both flows
+    progress_bar = st.empty()
+    status_text = st.empty()
+
+    def update_progress(pct, msg: str):
         progress_bar.progress(pct)
         status_text.text(msg)
 
-    info_text = st.empty()
-    if scrape_option == 'Scrape New Data':
+    if scrape_option == 'new':
+        st.subheader("Start fresh with a new search")
+        st.session_state.output_dir = OUTPUT_DIR
+
         query, max_results = get_query_and_limit()
 
-        if st.button('Start Scraping') and query:
+        # Let the user control where the new Excel file will be saved
+        default_folder = str(st.session_state.output_dir)
+        folder_input = st.text_input(
+            "Folder where the new Excel file will be saved",
+            value=default_folder,
+            help="Change this to any existing folder on your system.",
+        )
+        if folder_input:
+            st.session_state.output_dir = Path(folder_input)
+            log_once(
+                f"new_output_dir:{st.session_state.output_dir}",
+                "info",
+                "User set output folder (new mode) to: %s",
+                st.session_state.output_dir,
+            )
+
+        file_name = f'{query.replace(" ", "_")}.xlsx' if query else "leads.xlsx"
+        file_path = os.path.join(st.session_state.output_dir, file_name)
+
+        st.info(f'New data will be saved to: {file_path}')
+        log_once(
+            f"new_output_file:{file_path}",
+            "info",
+            "Planned output file for new mode: %s",
+            file_path,
+        )
+
+        if st.button("Start Scraping",
+                     disabled=st.session_state.is_scraping,
+                     on_click=start_scraping_callback) and query:
+            log_once(
+                f"start_new:{query}",
+                "info",
+                "Start Scraping button clicked (new mode) for query=%r",
+                query,
+            )
+            st.session_state.scraped_df = None
+
             progress_bar = st.progress(0)
             status_text = st.empty()
 
-            data = perform_scraping(query, max_results, progress_callback=update_progress)
-            handle_result_display(pd.DataFrame(data), query)
+            try:
+                data_raw = perform_scraping(query, max_results, progress_callback=update_progress)
+                # Process and normalize scraped data
+                data = process_scraped_data(data_raw)
+            except Exception:
+                st.error("An unexpected error occurred during scraping. Please check the logs.")
+                logger.error("Scraping failed in new mode for query=%r", query)
+                st.session_state.is_scraping = False
+                return
 
-            status_text.text("✅ Finished successfully.")
+            st.session_state.scraped_df = data
+            st.session_state.query = query
+
+            status_text.success("✅ Finished successfully.")
             progress_bar.empty()
 
-    elif scrape_option == 'Append to Existing Data':
-        uploaded_file = st.file_uploader('Upload an existing file', type=['xlsx'])
-        if uploaded_file:
-            df_existing = pd.read_excel(uploaded_file)
-            st.write('Existing Data:')
+            st.session_state.is_scraping = False
+
+            save_excel(st.session_state.scraped_df, file_path)
+            logger.info(
+                "New Excel file saved: %s (rows=%s)",
+                file_path,
+                len(st.session_state.scraped_df.index),
+            )
+
+            file_name = Path(file_path).name
+            st.code(f"New file created: {file_name}\nLocation: {file_path}", language="text")
+
+    elif scrape_option == 'append':
+        st.subheader("Append new leads to an existing file")
+        file_path = None
+
+        uploaded_file = st.file_uploader('Upload an existing Excel file (.xlsx)', type=['xlsx'])
+        
+        # If file is uploaded, save it to OUTPUT_DIR and show the path
+        uploaded_file_path = ""
+        if uploaded_file is not None:
+            # Save uploaded file to OUTPUT_DIR (same location where we save new files)
+            uploaded_file_path = str(OUTPUT_DIR / uploaded_file.name)
+            
+            # Write the uploaded file to disk
+            with open(uploaded_file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            
+            logger.info(f"Uploaded file saved to: {uploaded_file_path}")
+
+        path_input = st.text_input(
+            "Or provide the full path to an existing local Excel file",
+            value=uploaded_file_path if uploaded_file is not None else "",
+            placeholder="C:/Users/Name/Documents/leads.xlsx",
+            disabled=uploaded_file is not None,
+            help="If you don't upload a file above, this local path will be used.",
+        )
+
+        # Logic to decide which path to use
+        error = False
+        if path_input:
+            if os.path.exists(path_input):
+                if uploaded_file:
+                    st.info(f"Using uploaded file: {uploaded_file.name}")
+                    log_once(
+                        f"upload:{uploaded_file.name}",
+                        "info",
+                        "User uploaded existing Excel file: %s (saved to: %s)",
+                        uploaded_file.name,
+                        path_input,
+                    )
+                else:
+                    st.success(f"Using local path: {path_input}")
+                    log_once(
+                        f"path:{path_input}",
+                        "info",
+                        "User selected existing Excel file via path: %s",
+                        path_input,
+                    )
+            else:
+                st.error("Invalid local path.")
+                error = True
+                log_once(
+                    f"invalid_path:{path_input}",
+                    "warning",
+                    "User provided invalid path for existing Excel file: %s",
+                    path_input,
+                )
+
+        if (not error) and path_input:
+            try:
+                df_existing = pd.read_excel(path_input)
+                logger.info("Existing file loaded from %s (rows=%s)", path_input, len(df_existing.index))
+            except Exception:
+                st.error("Failed to read the existing Excel file. Please verify the file and try again.")
+                logger.exception("Failed to read existing Excel file")
+                return
+
+            st.write('Existing Data...')
             render_dataframe(render_clickable_links(df_existing))
 
             query, max_results = get_query_and_limit()
+            file_name = f'{query.replace(" ", "_")}.xlsx'
+            file_path = os.path.join(OUTPUT_DIR, file_name)
+            if path_input:
+                file_path = path_input
+                st.session_state.output_dir = Path(file_path).parent
+            log_once(
+                f"append_output_file:{file_path}",
+                "info",
+                "Planned output file for append mode: %s",
+                file_path,
+            )
 
-            if st.button('Start Scraping') and query:
+            if st.button("Start Scraping",
+                         disabled=st.session_state.is_scraping,
+                         on_click=start_scraping_callback) and query:
+                log_once(
+                    f"start_append:{query}",
+                    "info",
+                    "Start Scraping button clicked (append mode) for query=%r",
+                    query,
+                )
+                st.session_state.scraped_df = None
+
                 progress_bar = st.progress(0)
                 status_text = st.empty()
 
-                new_data = perform_scraping(query, max_results, progress_callback=update_progress)
-                df_combined = pd.concat([df_existing, pd.DataFrame(new_data)], ignore_index=True)
-                handle_result_display(df_combined, query)
+                try:
+                    new_data_raw = perform_scraping(query, max_results, progress_callback=update_progress)
+                    # Process and normalize new scraped data
+                    new_data = process_scraped_data(new_data_raw)
+                except Exception:
+                    st.error("An unexpected error occurred during scraping. Please check the logs.")
+                    logger.error("Scraping failed in append mode for query=%r", query)
+                    st.session_state.is_scraping = False
+                    return
+
+                # Combine existing and new data, then deduplicate
+                data = pd.concat([df_existing, new_data], ignore_index=True)
+                # Re-deduplicate the combined dataset
+                from utils.data_normalization import deduplicate_dataframe
+                data = deduplicate_dataframe(data)
+                logger.info(
+                    "Append mode: existing rows=%s, new rows=%s, combined rows=%s",
+                    len(df_existing.index),
+                    len(new_data.index),
+                    len(data.index),
+                )
+
+                st.session_state.scraped_df = data
+                st.session_state.query = query
 
                 status_text.text("✅ Updated file ready.")
                 progress_bar.empty()
+
+                st.session_state.is_scraping = False
+
+                save_excel(st.session_state.scraped_df, file_path)
+                logger.info(
+                    "Existing Excel file updated: %s (rows=%s)",
+                    file_path,
+                    len(st.session_state.scraped_df.index),
+                )
+
+                file_name = Path(file_path).name
+                st.code(
+                    f"Existing file updated: {file_name}\nLocation: {file_path}",
+                    language="text",
+                )
+
+    if file_path and (st.session_state.scraped_df is not None):
+        st.subheader("Result")
+        st.markdown("---")
+
+        handle_result_display(st.session_state.scraped_df)
+
+        # Use on_click to trigger the function BEFORE the script reruns
+        st.button(
+            "📂 Open Output Folder",
+            on_click=open_folder,
+            args=(st.session_state.output_dir,),
+            help="Click to open the folder containing your Excel files"
+        )
 
 
 if __name__ == '__main__':

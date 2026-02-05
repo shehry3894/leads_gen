@@ -2,30 +2,52 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
-# VS Code settings
+# IDE settings
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# Conda/virtual environments (if created inside project)
+# Virtual environments (if created inside project)
 env/
 .venv/
 venv/
+../venv/
 conda-env/
 *.conda
 *.tar.bz2
 
+# Package manager files
+uv.lock
+.python-version
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec.bak
+
 # Output files
 *.xlsx
-/output/
+/streamlit_app/output/
+/leads_gen_output/
 
 # Logs and temp files
 *.log
 *.tmp
+logs/
 
 # Environment secrets
 .env
 *.env
 
-# Windows system files
+# OS-specific files
+.DS_Store
 Thumbs.db
 desktop.ini
+*.bak
+
+# Documentation drafts (keep final versions)
+*_DRAFT.md

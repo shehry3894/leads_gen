@@ -6,15 +6,11 @@ from datetime import datetime
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("leads_gen")
+
 
 def generate_whatsapp_link(phone_number):
-    
     if phone_number and phone_number != 'N/A':
         wa_number = phone_number.replace('+', '').replace(' ', '').replace('-', '')
         return f'https://wa.me/{wa_number}'
@@ -23,7 +19,8 @@ def generate_whatsapp_link(phone_number):
 
 def clean_emails(emails):
     cleaned = set()
-    dummy_keywords = ['example', 'test', 'dummy','ed436f5053144538958ad06a5005e99a',' c183baa23371454f99f417f6616b724d', 'no-reply', 'noreply', 'abc', 'xyz', 'yourdomain']
+    dummy_keywords = ['example', 'test', 'dummy', 'ed436f5053144538958ad06a5005e99a',
+                      ' c183baa23371454f99f417f6616b724d', 'no-reply', 'noreply', 'abc', 'xyz', 'yourdomain']
 
     for email in emails:
         email_lower = email.lower()
@@ -66,7 +63,7 @@ def extract_social_and_email_links(website_url, retries=2, delay=3):
 
     for _ in range(retries):
         try:
-            logging.info(f'Attempting to scrape social and email links from: {website_url}')
+            logger.info(f'Attempting to scrape social and email links from: {website_url}')
             response = requests.get(website_url, headers=headers, timeout=10)
             if response.status_code == 200:
                 html = response.text
@@ -77,10 +74,10 @@ def extract_social_and_email_links(website_url, retries=2, delay=3):
 
                 raw_emails = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", html)
                 social_links['Emails'] = clean_emails(raw_emails)
-                logging.info(f'Successfully scraped social and email links from {website_url}')
+                logger.info(f'Successfully scraped social and email links from {website_url}')
                 break
         except Exception as e:
-            logging.warning(f'Error scraping {website_url}: {str(e)}')
+            logger.warning(f'Error scraping {website_url}: {str(e)}')
             time.sleep(delay)
 
     return social_links
@@ -89,11 +86,11 @@ def extract_social_and_email_links(website_url, retries=2, delay=3):
 def scrape_business_data(driver, max_results):
     data = []
     results = driver.find_elements(By.XPATH, '//div[contains(@class, "Nv2PK")]')
-    logging.info(f'Starting to scrape {len(results)} business results.')
+    logger.info(f'Starting to scrape {len(results)} business results.')
 
     for i in range(len(results)):
         if max_results is not None and i >= max_results:
-            logging.info(f'Reached the max results limit: {max_results}')
+            logger.info(f'Reached the max results limit: {max_results}')
             break
         try:
             results = driver.find_elements(By.XPATH, '//div[contains(@class, "Nv2PK")]')
@@ -103,11 +100,33 @@ def scrape_business_data(driver, max_results):
             time.sleep(3)
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//h1')))
 
-            name = driver.find_element(By.XPATH, '//h1[contains(@class,"DUwDvf")]').text if driver.find_elements(By.XPATH, '//h1[contains(@class,"DUwDvf")]') else "N/A"
-            address = driver.find_element(By.XPATH, '//button[contains(@aria-label,"Address")]/div/div[2]/div[1]').text if driver.find_elements(By.XPATH, '//button[contains(@aria-label,"Address")]/div/div[2]/div[1]') else "N/A"
-            website = driver.find_element(By.XPATH, '//a[contains(@data-item-id,"authority")]').get_attribute('href') if driver.find_elements(By.XPATH, '//a[contains(@data-item-id,"authority")]') else "N/A"
-            phone = driver.find_element(By.XPATH, "//button[contains(@data-item-id,'phone')]//div[@class='rogA2c ']/div[1]").text if driver.find_elements(By.XPATH, "//button[contains(@data-item-id,'phone')]//div[@class='rogA2c ']/div[1]") else "N/A"
-            rating = driver.find_element(By.XPATH, '(//div[contains(@class,"F7nice ")]/span/span)[1]').text if driver.find_elements(By.XPATH, '(//div[contains(@class,"F7nice ")]/span/span)[1]') else "N/A"
+            name = driver.find_element(By.XPATH, '//h1[contains(@class,"DUwDvf")]').text if driver.find_elements(
+                By.XPATH, '//h1[contains(@class,"DUwDvf")]') else "N/A"
+            address = driver.find_element(By.XPATH,
+                                          '//button[contains(@aria-label,"Address")]/div/div[2]/div[1]').text if driver.find_elements(
+                By.XPATH, '//button[contains(@aria-label,"Address")]/div/div[2]/div[1]') else "N/A"
+            website = driver.find_element(By.XPATH, '//a[contains(@data-item-id,"authority")]').get_attribute(
+                'href') if driver.find_elements(By.XPATH, '//a[contains(@data-item-id,"authority")]') else "N/A"
+            phone = driver.find_element(By.XPATH,
+                                        "//button[contains(@data-item-id,'phone')]//div[@class='rogA2c ']/div[1]").text if driver.find_elements(
+                By.XPATH, "//button[contains(@data-item-id,'phone')]//div[@class='rogA2c ']/div[1]") else "N/A"
+            rating = driver.find_element(By.XPATH,
+                                         '(//div[contains(@class,"F7nice ")]/span/span)[1]').text if driver.find_elements(
+                By.XPATH, '(//div[contains(@class,"F7nice ")]/span/span)[1]') else "N/A"
+            
+            # Extract review count
+            review_count = "N/A"
+            try:
+                review_count_elem = driver.find_elements(By.XPATH, '//div[contains(@class,"F7nice")]//span[@aria-label]')
+                if review_count_elem:
+                    aria_label = review_count_elem[0].get_attribute('aria-label')
+                    # Extract number from aria-label like "4.5 stars 123 reviews"
+                    match = re.search(r'(\d+(?:,\d+)*)\s+reviews?', aria_label, re.IGNORECASE)
+                    if match:
+                        review_count = match.group(1).replace(',', '')
+            except Exception:
+                pass
+            
             short_link = driver.current_url  # Get current Google Maps short URL
 
             social_links = extract_social_and_email_links(website) if website != "N/A" else {
@@ -127,6 +146,7 @@ def scrape_business_data(driver, max_results):
                 'WhatsApp': whatsapp_link,
                 'Website': website,
                 'Rating': rating,
+                'Review Count': review_count,
                 'Facebook': social_links['Facebook'],
                 'Instagram': social_links['Instagram'],
                 'Twitter': social_links['Twitter'],
@@ -138,12 +158,12 @@ def scrape_business_data(driver, max_results):
                 'Snapchat': social_links['Snapchat'],
                 'Emails': ", ".join(social_links['Emails']),
                 'Scraped Time': scraped_time
-                
+
             })
-            logging.info(f'Scraped {i+1}. Business: {name}')
+            logger.info(f'Scraped {i + 1}. Business: {name}')
         except Exception as e:
-            logging.error(f'{i+1}. Failed to scrape business due to: {str(e)}')
+            logger.error(f'{i + 1}. Failed to scrape business due to: {str(e)}')
             continue
 
-    logging.info(f'Scraping completed. Total businesses scraped: {len(data)}')
+    logger.info(f'Scraping completed. Total businesses scraped: {len(data)}')
     return data

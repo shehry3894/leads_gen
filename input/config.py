@@ -6,6 +6,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Add headless mode configuration
 HEADLESS_MODE = False  # ✅ Change to False when debugging with browser
 TRIAL = True
+TESTING = True
 
 
 def get_user_inputs():
