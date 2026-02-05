@@ -71,6 +71,7 @@ from leads_gen.core.demo_data import get_demo_leads
 from leads_gen.utils.paths import get_ui_output_dir
 from leads_gen.core.data_normalization import process_scraped_data
 from leads_gen.version import __version__, __app_name__
+from leads_gen.licensing.license_manager import LicenseManager
 
 import sys
 
@@ -277,6 +278,54 @@ def save_excel(df, file_path):
 def main():
     st.title('Business Leads Generator')
 
+    # --- Sidebar: License Information ---
+    st.sidebar.header("📋 License Information")
+    
+    # Initialize license manager and get info
+    try:
+        if "license_manager" not in st.session_state:
+            st.session_state.license_manager = LicenseManager()
+            st.session_state.license_manager.initialize()
+        
+        license_manager = st.session_state.license_manager
+        license_info = license_manager.get_license_info()
+        
+        # Display license details
+        if license_info['is_valid']:
+            license_type = license_info['type']
+            days_remaining = license_info['days_remaining']
+            max_results = license_info['max_results']
+            expiry_date = license_info['expiry_date']
+            
+            # Color-code based on days remaining
+            if days_remaining > 30:
+                status_emoji = "✅"
+                status_color = "green"
+            elif days_remaining > 7:
+                status_emoji = "⚠️"
+                status_color = "orange"
+            else:
+                status_emoji = "🔴"
+                status_color = "red"
+            
+            st.sidebar.markdown(f"**License Type:** {license_type}")
+            st.sidebar.markdown(f"**Status:** {status_emoji} Active")
+            st.sidebar.markdown(f"**Expires:** {expiry_date}")
+            st.sidebar.markdown(f"**Days Remaining:** :{status_color}[{days_remaining} days]")
+            st.sidebar.markdown(f"**Max Results:** {max_results} per run")
+            
+            # Warning if expiring soon
+            if days_remaining <= 7:
+                st.sidebar.warning(f"⚠️ License expiring in {days_remaining} days!")
+        else:
+            st.sidebar.error("❌ No Valid License")
+            st.sidebar.markdown("Contact support for license key.")
+    except Exception as e:
+        st.sidebar.warning("⚠️ License check skipped")
+        log_once("license_error", "warning", f"License check error: {str(e)}")
+    
+    st.sidebar.markdown("---")
+    
     # --- Sidebar: high-level workflow selection ---
     st.sidebar.header("Workflow")
     st.sidebar.markdown(

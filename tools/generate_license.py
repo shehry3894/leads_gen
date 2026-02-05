@@ -177,8 +177,11 @@ Examples:
   # Generate 12-month full license
   python generate_license.py --fingerprint abc123... --months 12 --max-results 5000
 
+  # Generate license with specific expiry date (recommended)
+  python generate_license.py --fingerprint abc123... --expiry-date 2026-12-31 --max-results 1000
+
   # Generate license and save to file
-  python generate_license.py --fingerprint abc123... --months 6 --max-results 1000 --save
+  python generate_license.py --fingerprint abc123... --expiry-date 2027-06-30 --max-results 1000 --save
         """
     )
     
@@ -199,6 +202,11 @@ Examples:
         '--months',
         type=int,
         help='License duration in months (for full licenses)'
+    )
+    time_group.add_argument(
+        '--expiry-date',
+        type=str,
+        help='License expiry date in YYYY-MM-DD format (e.g., 2026-12-31)'
     )
     
     parser.add_argument(
@@ -237,7 +245,46 @@ Examples:
     print("License Key Generator")
     print("=" * 60)
     
-    if args.days:
+    # Handle expiry date parameter
+    if args.expiry_date:
+        from datetime import datetime, timedelta
+        try:
+            # Parse the expiry date
+            expiry_date = datetime.strptime(args.expiry_date, "%Y-%m-%d").date()
+            today = datetime.now().date()
+            
+            # Validate expiry date is in the future
+            if expiry_date <= today:
+                logger.error(f"Expiry date must be in the future. Given: {expiry_date}, Today: {today}")
+                sys.exit(1)
+            
+            # Calculate days until expiry
+            days_until_expiry = (expiry_date - today).days
+            
+            # Determine license type based on duration
+            if days_until_expiry <= 30:
+                # Trial license (30 days or less)
+                print(f"\nGenerating TRIAL license:")
+                print(f"  Fingerprint: {args.fingerprint[:16]}...")
+                print(f"  Expiry Date: {expiry_date}")
+                print(f"  Duration: {days_until_expiry} days")
+                print(f"  Max Results: {args.max_results}")
+                license_key = generate_trial_license_key(args.fingerprint, days_until_expiry, args.max_results)
+                license_type = "trial"
+            else:
+                # Full license (more than 30 days)
+                months = days_until_expiry // 30  # Approximate months
+                print(f"\nGenerating FULL license:")
+                print(f"  Fingerprint: {args.fingerprint[:16]}...")
+                print(f"  Expiry Date: {expiry_date}")
+                print(f"  Duration: {days_until_expiry} days (~{months} months)")
+                print(f"  Max Results: {args.max_results}")
+                license_key = generate_full_license_key(args.fingerprint, months, args.max_results)
+                license_type = "full"
+        except ValueError as e:
+            logger.error(f"Invalid date format. Use YYYY-MM-DD (e.g., 2026-12-31). Error: {e}")
+            sys.exit(1)
+    elif args.days:
         print(f"\nGenerating TRIAL license:")
         print(f"  Fingerprint: {args.fingerprint[:16]}...")
         print(f"  Duration: {args.days} days")

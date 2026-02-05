@@ -291,7 +291,13 @@ def scrape_business_data(driver, max_results):
                 'Scraped Time': scraped_time
 
             })
-            logger.info(f'Scraped {i + 1}. Business: {name}')
+            # Log detailed business information
+            logger.info(f'✓ Scraped business {i + 1}/{len(results)}: {name}')
+            logger.info(f'  └─ Google Maps: {short_link}')
+            logger.info(f'  └─ Address: {address}')
+            logger.info(f'  └─ Phone: {phone}')
+            logger.info(f'  └─ Website: {website}')
+            logger.info(f'  └─ Rating: {rating} ({review_count} reviews)')
         except Exception as e:
             logger.error(f'{i + 1}. Failed to scrape business due to: {str(e)}')
             continue
