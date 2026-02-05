@@ -4,12 +4,15 @@ A comprehensive Python-based web scraper designed to extract business intelligen
 
 ## 🚀 Features
 
-* **Multi-Interface:** Choose between a simple Command Line (CLI) or a modern Streamlit Web UI.
-* **Deep Data Extraction:** Scrapes name, address, phone number, website, and ratings.
-* **Contact Discovery:** Automatically crawls business websites to find email addresses and social media links (LinkedIn, Facebook, Instagram, etc.).
-* **Custom Limits:** Define exactly how many leads you want to collect.
-* **Automated Export:** Generates clean, formatted `.xlsx` files automatically.
-* **Docker Ready:** Easily containerized for consistent deployment.
+* **Multi-Interface:** Choose between a simple Command Line (CLI) or a modern Streamlit Web UI
+* **Deep Data Extraction:** Scrapes name, address, phone number, website, ratings, and review counts
+* **Contact Discovery:** Automatically crawls business websites to find email addresses and social media links (LinkedIn, Facebook, Instagram, YouTube, TikTok, etc.)
+* **Smart Wait Logic:** Intelligent element detection with configurable timeouts and retries
+* **Data Normalization:** Automatic deduplication and data cleaning
+* **Machine-Bound Licensing:** Secure, offline licensing system
+* **Custom Limits:** Define exactly how many leads you want to collect
+* **Automated Export:** Generates clean, formatted `.xlsx` files automatically
+* **Production Ready:** Professional structure, comprehensive logging, and error handling
 
 ---
 
@@ -76,21 +79,34 @@ pip install -r requirements.txt
 Launch a user-friendly dashboard in your browser:
 
 ```bash
-python -m streamlit run app.py
-
+uv run streamlit run app.py
+# or
+streamlit run app.py
 ```
+
+**Features:**
+- Choose between "Start Fresh" or "Append to Existing" workflows
+- Upload existing Excel files to append data
+- Visual progress tracking
+- Download results directly from the browser
 
 ### 2. Command Line Interface
 
 Run the script directly in your terminal:
 
 ```bash
+uv run python main.py
+# or
 python main.py
-
 ```
 
-* Follow the prompts to enter your search query (e.g., "Dental clinics in London").
-* Results will be saved in the `output/` directory.
+**Workflow:**
+1. Enter your search query (e.g., "gyms in New York")
+2. Specify maximum number of results (or type "all")
+3. Wait for scraping to complete
+4. Find results in the `output/` directory
+
+**Note:** Trial mode limits results to 3 for quick testing.
 
 ### 3. Docker
 
@@ -108,33 +124,58 @@ Access the UI at `http://localhost:8501`.
 
 ## 📦 Creating a Standalone Executable
 
-If you need to build a portable `.exe` for Windows, use the following command (requires `streamlit-desktop-app`):
+Build a portable executable using PyInstaller:
 
 ```bash
-streamlit-desktop-app build app.py --name leads_gen --pyinstaller-options --onefile \
---clean \
---console \
---paths ./ \
---hidden-import scraper \
---hidden-import utils \
---add-data "scraper:scraper" \
---add-data "utils:utils" \
---add-data "input:input" \
---collect-all streamlit \
---collect-all openpyxl \
---collect-all pandas \
---collect-all requests \
---collect-all selenium \
---collect-all webdriver_manager \
---collect-all xlsxwriter
+pyinstaller leads_gen.spec
 ```
+
+The executable will be in the `dist/` directory.
+
+---
+
+## 🔐 Licensing System
+
+This application uses a **machine-bound, time-limited license** system.
+
+### First-Time Setup
+
+1. **Get your machine fingerprint:**
+   ```bash
+   uv run python -c "from leads_gen.licensing.fingerprint import generate_machine_fingerprint; print(generate_machine_fingerprint())"
+   ```
+
+2. **Send the fingerprint to the developer** to receive your license key.
+
+3. **Activate your license:**
+   ```bash
+   # Save the license key to a file
+   echo "YOUR_LICENSE_KEY_HERE" > leads_gen/license.key
+   ```
+
+### License Information
+
+- Trial licenses: 7-30 days, limited results
+- Full licenses: 6-12 months, higher result limits
+- Licenses are tied to your specific machine
+- No internet required for validation
+
+See `docs/licensing/LICENSING_GUIDE.md` for detailed instructions.
 
 ---
 
 ## 📂 Project Structure
 
-* `main.py`: Entry point for CLI usage.
-* `app.py`: Entry point for the Streamlit UI.
-* `scraper/`: Contains the Selenium logic for Google Maps interaction.
-* `utils/`: Contains logic for website crawling and social link extraction.
-* `output/`: Default folder for your generated Excel leads.
+* `main.py`: Entry point for CLI usage
+* `app.py`: Entry point for Streamlit Web UI
+* `leads_gen/`: Main application package
+  * `scraper/`: Google Maps scraping engine
+  * `core/`: Business logic and data processing
+  * `licensing/`: License validation system
+  * `config/`: Application configuration
+  * `utils/`: Shared utilities
+* `tools/`: Developer tools (license generation)
+* `tests/`: Test files
+* `docs/`: Comprehensive documentation
+* `output/`: CLI output files (Excel)
+* `leads_gen_output/`: UI output files (Excel)

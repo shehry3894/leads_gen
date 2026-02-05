@@ -6,9 +6,9 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 
-from input.config import HEADLESS_MODE
+from leads_gen.config.settings import HEADLESS_MODE
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("leads_gen")
 
 
 def resource_path(relative_path):

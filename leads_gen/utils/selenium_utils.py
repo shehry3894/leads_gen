@@ -6,9 +6,9 @@ from fake_useragent import UserAgent
 from selenium import webdriver
 from selenium.webdriver import Firefox, Chrome, ChromeOptions, FirefoxOptions
 
-from data_types import WebDrivers
-from inputs.config import SeleniumConfig
-from utils.printing_and_logging import print_and_log
+from leads_gen.core.data_types import WebDrivers
+from leads_gen.config.settings import SeleniumConfig
+from leads_gen.utils.printing_and_logging import print_and_log
 
 LIB_NAME_GECKO = 'geckodriver' if platform.system() == 'Linux' else 'geckodriver.exe'
 LIB_NAME_CHROME = 'chromedriver' if platform.system() == 'Linux' else 'chromedriver.exe'

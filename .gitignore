@@ -43,6 +43,11 @@ logs/
 .env
 *.env
 
+# License keys (sensitive - never commit)
+license.key
+*.key
+licenses/
+
 # OS-specific files
 .DS_Store
 Thumbs.db

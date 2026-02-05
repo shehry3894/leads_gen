@@ -6,7 +6,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
-from input.config import TRIAL
+from leads_gen.config.settings import TRIAL, WAIT_CONFIG
+from leads_gen.utils.wait_utils import SmartWait
 
 logger = logging.getLogger("leads_gen")
 
@@ -17,12 +18,22 @@ def scroll_results(driver, max_results):
         logger.info(f'Setting max results to {max_results} since you are using trial version')
 
     logger.info('Starting the scroll process.')
+    smart_wait = SmartWait(driver)
 
     try:
-        # Wait for the scrollable results feed to be present
-        scrollable_div = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.XPATH, '//div[@role="feed"]'))
+        # Wait for the scrollable results feed to be present with smart wait
+        timeout = WAIT_CONFIG.get('search_results', 15)
+        scrollable_div = smart_wait.wait_for_element(
+            By.XPATH,
+            '//div[@role="feed"]',
+            timeout=timeout,
+            condition='presence'
         )
+        
+        if not scrollable_div:
+            logger.error('Scrollable feed not found')
+            return
+        
         logger.info('Scrollable feed found.')
 
         collected = 0
@@ -36,7 +47,8 @@ def scroll_results(driver, max_results):
             )
             logger.debug('Scrolled to bottom.')
 
-            time.sleep(2.5)  # Wait for new results to load
+            # Wait briefly for new results to load, then check
+            time.sleep(WAIT_CONFIG.get('base_wait', 1.0))
 
             results = driver.find_elements(By.XPATH, '//div[contains(@class, "Nv2PK")]')
             current_count = len(results)

@@ -5,7 +5,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from input.config import TESTING, TRIAL
+from leads_gen.config.settings import TESTING, TRIAL
 
 # Disable pip version checks
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
@@ -62,15 +62,15 @@ import pandas as pd
 import logging
 from io import BytesIO
 
-from scraper.driver import start_driver
-from scraper.search import search_maps
-from scraper.scroll import scroll_results
-from scraper.scrape import scrape_business_data
-from utils.logging_utils import configure_file_logging
-from utils.demo_data import get_demo_leads
-from utils.paths import get_ui_output_dir
-from utils.data_normalization import process_scraped_data
-from version import __version__, __app_name__
+from leads_gen.scraper.driver import start_driver
+from leads_gen.scraper.search import search_maps
+from leads_gen.scraper.scroll import scroll_results
+from leads_gen.scraper.scrape import scrape_business_data
+from leads_gen.utils.logging_utils import configure_file_logging
+from leads_gen.core.demo_data import get_demo_leads
+from leads_gen.utils.paths import get_ui_output_dir
+from leads_gen.core.data_normalization import process_scraped_data
+from leads_gen.version import __version__, __app_name__
 
 import sys
 
