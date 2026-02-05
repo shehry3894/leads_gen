@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import argparse
 
 import pandas as pd
 
@@ -18,68 +19,154 @@ from leads_gen.version import __version__, __app_name__
 from leads_gen.config.settings import get_user_inputs, HEADLESS_MODE, TESTING
 
 
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description=f'{__app_name__} - Scrape business leads from Google Maps',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Interactive mode (default)
+  python main.py
+
+  # CLI mode with arguments
+  python main.py --query "gyms in New York" --max-results 20
+
+  # Skip license check (for testing)
+  python main.py --query "cafes in Paris" --max-results 10 --no-license
+
+  # Scrape all available results
+  python main.py --query "restaurants in London" --max-results all
+        """
+    )
+    
+    parser.add_argument(
+        '--query',
+        '-q',
+        type=str,
+        help='Search query (e.g., "gyms in New York")'
+    )
+    
+    parser.add_argument(
+        '--max-results',
+        '-m',
+        type=str,
+        help='Maximum number of results to scrape (or "all" for no limit)'
+    )
+    
+    parser.add_argument(
+        '--no-license',
+        action='store_true',
+        help='Skip license validation (for testing purposes only)'
+    )
+    
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'{__app_name__} v{__version__}'
+    )
+    
+    return parser.parse_args()
+
+
 def main():
+    # Parse command-line arguments
+    args = parse_arguments()
+    
     log_file = configure_file_logging()
     logger = logging.getLogger("leads_gen")
     logger.info(f"{__app_name__} v{__version__} started (CLI mode). Logs: {log_file}")
 
-    # Initialize licensing system
-    license_manager = LicenseManager()
-    success, message = license_manager.initialize()
-    logger.info(f"License status: {message}")
+    # Determine if we're using command-line arguments or interactive mode
+    use_cli_args = args.query is not None or args.max_results is not None
     
-    if not success:
-        logger.error("="*60)
-        logger.error("LICENSE REQUIRED")
-        logger.error("="*60)
-        logger.error(message)
-        logger.error("\nTo get a license:")
-        logger.error("1. Run: python utils/license_manager.py --show-fingerprint")
-        logger.error("2. Send the fingerprint to the developer")
-        logger.error("3. Save the license key: python utils/license_manager.py --save-license <key>")
-        logger.error("="*60)
-        print("\n" + "="*60)
-        print("LICENSE REQUIRED")
-        print("="*60)
-        print(f"{message}\n")
-        print("To get a license:")
-        print("1. Run: python utils/license_manager.py --show-fingerprint")
-        print("2. Send the fingerprint to the developer")
-        print("3. Save the license key: python utils/license_manager.py --save-license <key>")
-        print("="*60)
-        sys.exit(1)
-
-    # Display license info
-    license_info = license_manager.get_license_info()
-    logger.info(f"License type: {license_info['type']}")
-    logger.info(f"Days remaining: {license_info['days_remaining']}")
-    logger.info(f"Max results per run: {license_info['max_results']}")
-
-    query, max_results = get_user_inputs()
-    logger.info(f"User input (CLI): query=%r, max_results=%s", query, max_results if max_results is not None else "all")
-
-    # Enforce license limits
-    if max_results is None:
-        max_results = license_manager.get_max_results()
-        logger.info(f"No max results specified, using license limit: {max_results}")
+    if use_cli_args:
+        logger.info("Running in CLI argument mode")
     else:
-        can_scrape, msg = license_manager.can_scrape(max_results)
-        if not can_scrape:
+        logger.info("Running in interactive mode")
+
+    # Initialize licensing system (skip if --no-license flag is set)
+    license_manager = None
+    if not args.no_license:
+        license_manager = LicenseManager()
+        success, message = license_manager.initialize()
+        logger.info(f"License status: {message}")
+        
+        if not success:
             logger.error("="*60)
-            logger.error("LICENSE LIMIT EXCEEDED")
+            logger.error("LICENSE REQUIRED")
             logger.error("="*60)
-            logger.error(msg)
-            logger.error(f"\nYour license allows maximum {license_manager.get_max_results()} results per run")
+            logger.error(message)
+            logger.error("\nTo get a license:")
+            logger.error("1. Run: python utils/license_manager.py --show-fingerprint")
+            logger.error("2. Send the fingerprint to the developer")
+            logger.error("3. Save the license key: python utils/license_manager.py --save-license <key>")
             logger.error("="*60)
             print("\n" + "="*60)
-            print("LICENSE LIMIT EXCEEDED")
+            print("LICENSE REQUIRED")
             print("="*60)
-            print(f"{msg}")
-            print(f"\nYour license allows maximum {license_manager.get_max_results()} results per run")
+            print(f"{message}\n")
+            print("To get a license:")
+            print("1. Run: python utils/license_manager.py --show-fingerprint")
+            print("2. Send the fingerprint to the developer")
+            print("3. Save the license key: python utils/license_manager.py --save-license <key>")
             print("="*60)
             sys.exit(1)
+
+        # Display license info
+        license_info = license_manager.get_license_info()
+        logger.info(f"License type: {license_info['type']}")
+        logger.info(f"Days remaining: {license_info['days_remaining']}")
+        logger.info(f"Max results per run: {license_info['max_results']}")
+    else:
+        logger.warning("License check bypassed (--no-license flag used)")
+        print("\n⚠️  WARNING: Running without license validation (testing mode)")
+
+    # Get query and max_results from CLI args or interactive prompts
+    if use_cli_args:
+        query = args.query if args.query else input('Enter the search term (e.g., "gyms in New York"): ').strip()
+        
+        if args.max_results:
+            if args.max_results.lower() == 'all':
+                max_results = None
+            else:
+                try:
+                    max_results = int(args.max_results)
+                except ValueError:
+                    logger.error(f"Invalid --max-results value: {args.max_results}. Must be a number or 'all'")
+                    print(f"❌ Error: --max-results must be a number or 'all', got: {args.max_results}")
+                    sys.exit(1)
         else:
-            logger.info(msg)
+            max_results_input = input('Enter the number of businesses to scrape (type "all" for no limit): ').strip()
+            max_results = None if max_results_input.lower() == 'all' else int(max_results_input)
+    else:
+        query, max_results = get_user_inputs()
+    
+    logger.info(f"User input: query=%r, max_results=%s", query, max_results if max_results is not None else "all")
+
+    # Enforce license limits (only if license validation is enabled)
+    if license_manager:
+        if max_results is None:
+            max_results = license_manager.get_max_results()
+            logger.info(f"No max results specified, using license limit: {max_results}")
+        else:
+            can_scrape, msg = license_manager.can_scrape(max_results)
+            if not can_scrape:
+                logger.error("="*60)
+                logger.error("LICENSE LIMIT EXCEEDED")
+                logger.error("="*60)
+                logger.error(msg)
+                logger.error(f"\nYour license allows maximum {license_manager.get_max_results()} results per run")
+                logger.error("="*60)
+                print("\n" + "="*60)
+                print("LICENSE LIMIT EXCEEDED")
+                print("="*60)
+                print(f"{msg}")
+                print(f"\nYour license allows maximum {license_manager.get_max_results()} results per run")
+                print("="*60)
+                sys.exit(1)
+            else:
+                logger.info(msg)
 
     if TESTING:
         logger.info("TESTING=True, using demo leads instead of live scraping")
