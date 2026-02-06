@@ -86,6 +86,7 @@ if "log_file_path" not in st.session_state:
 LOG_FILE_PATH = st.session_state.log_file_path
 OUTPUT_DIR = get_ui_output_dir()
 
+# Initialize session state variables
 if "output_dir" not in st.session_state:
     st.session_state.output_dir = OUTPUT_DIR
 
@@ -102,6 +103,56 @@ if "workflow_locked" not in st.session_state:
     st.session_state.workflow_locked = False
 
 logger = logging.getLogger("leads_gen")
+
+
+def reset_app_state():
+    """
+    Reset the application state to initial values.
+    Keeps log file and license info intact, but clears scraping data and workflow state.
+    """
+    logger.info("=" * 60)
+    logger.info("🔄 APP RESET - User clicked reset button")
+    logger.info("=" * 60)
+    
+    # Count what's being cleared
+    cleared_items = []
+    
+    # Clear scraping-related state
+    if st.session_state.scraped_df is not None:
+        cleared_items.append("scraped data")
+        st.session_state.scraped_df = None
+    
+    if st.session_state.query:
+        cleared_items.append(f"query: '{st.session_state.query}'")
+        st.session_state.query = None
+    
+    if st.session_state.is_scraping:
+        cleared_items.append("scraping flag")
+        st.session_state.is_scraping = False
+    
+    if st.session_state.workflow_locked:
+        cleared_items.append("workflow lock")
+        st.session_state.workflow_locked = False
+    
+    st.session_state.output_dir = OUTPUT_DIR
+    
+    # Keep these intact:
+    # - log_file_path (same log file for entire browser session)
+    # - license_manager (keep license validation)
+    # - logged_start (don't re-log app start)
+    # - _logged_keys (keep track of what's been logged to avoid duplicates)
+    
+    if cleared_items:
+        logger.info("Cleared: %s", ", ".join(cleared_items))
+    else:
+        logger.info("No active state to clear")
+    
+    logger.info("App state reset to initial values")
+    logger.info("Log file continues: %s", LOG_FILE_PATH)
+    logger.info("License info preserved")
+    logger.info("=" * 60)
+    
+    st.rerun()
 
 def log_once(key: str, level: str, msg: str, *args):
     """
@@ -404,6 +455,16 @@ def main():
         
         # Stop execution here - don't show any other UI elements
         st.stop()
+    
+    # --- Sidebar: Reset Button ---
+    st.sidebar.header("🔄 App Control")
+    
+    if st.sidebar.button("🔄 Reset App", use_container_width=True, type="secondary"):
+        reset_app_state()
+    
+    st.sidebar.caption("Click to reset app state and start fresh. Log file continues.")
+    
+    st.sidebar.markdown("---")
     
     # --- Sidebar: high-level workflow selection ---
     st.sidebar.header("Workflow")
