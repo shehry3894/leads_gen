@@ -72,6 +72,7 @@ from leads_gen.utils.paths import get_ui_output_dir
 from leads_gen.core.data_normalization import process_scraped_data
 from leads_gen.version import __version__, __app_name__
 from leads_gen.licensing.license_manager import LicenseManager
+from leads_gen.licensing.fingerprint import generate_machine_fingerprint
 
 import sys
 
@@ -347,37 +348,39 @@ def main():
         **Status:** ❌ Invalid or Missing
         
         **Error:** {error}
+        """.format(error=license_message))
         
-        ---
+        st.markdown("---")
         
-        ### 🔑 How to Activate Your License
+        # Generate and display machine fingerprint
+        st.markdown("### 🔑 Your Machine Fingerprint")
+        st.markdown("**Copy the fingerprint below and send it to your administrator to get a license key:**")
         
-        #### Step 1: Get Your Machine Fingerprint
+        try:
+            machine_fingerprint = generate_machine_fingerprint()
+            st.code(machine_fingerprint, language=None)
+            st.success("✅ Fingerprint generated successfully. Copy the code above and send it to get your license.")
+        except Exception as e:
+            st.error(f"❌ Could not generate fingerprint: {str(e)}")
+            st.markdown("Please contact your administrator for assistance.")
         
-        Run this command in your terminal:
-        ```bash
-        uv run python -c "from leads_gen.licensing.fingerprint import generate_machine_fingerprint; print(generate_machine_fingerprint())"
-        ```
+        st.markdown("---")
         
-        Or using regular Python:
-        ```bash
-        python -c "from leads_gen.licensing.fingerprint import generate_machine_fingerprint; print(generate_machine_fingerprint())"
-        ```
+        st.markdown("""
+        ### 📋 Activation Steps
         
-        #### Step 2: Request a License Key
+        **Step 1:** Copy your machine fingerprint shown above
         
-        Send your fingerprint to the developer/administrator to receive your license key.
+        **Step 2:** Send the fingerprint to your administrator/developer
         
-        #### Step 3: Activate the License
+        **Step 3:** Receive your license key from the administrator
         
-        Save the license key you received:
+        **Step 4:** Save the license key to activate:
         ```bash
         echo "YOUR_LICENSE_KEY_HERE" > leads_gen/license.key
         ```
         
-        #### Step 4: Restart the Application
-        
-        Refresh this page or restart the Streamlit app to activate your license.
+        **Step 5:** Refresh this page to activate your license
         
         ---
         
@@ -385,19 +388,19 @@ def main():
         
         - Check the documentation: `docs/licensing/LICENSING_GUIDE.md`
         - Contact your system administrator for a license key
-        - Ensure the license file is in the correct location: `leads_gen/license.key`
+        - Ensure the license file is saved in: `leads_gen/license.key`
         
         ---
         
         ### 💡 For Testing (CLI Only)
         
-        You can test the application via command line with the `--no-license` flag:
+        Developers can test via command line with the `--no-license` flag:
         ```bash
         uv run python main.py --query "test query" --max-results 3 --no-license
         ```
         
         **Note:** The `--no-license` flag is only available in CLI mode, not in the web interface.
-        """.format(error=license_message))
+        """)
         
         # Stop execution here - don't show any other UI elements
         st.stop()
