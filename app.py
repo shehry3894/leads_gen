@@ -282,16 +282,22 @@ def main():
     st.sidebar.header("📋 License Information")
     
     # Initialize license manager and get info
+    license_valid = False
+    license_message = ""
+    
     try:
         if "license_manager" not in st.session_state:
             st.session_state.license_manager = LicenseManager()
-            st.session_state.license_manager.initialize()
+            success, message = st.session_state.license_manager.initialize()
+            st.session_state.license_init_success = success
+            st.session_state.license_init_message = message
         
         license_manager = st.session_state.license_manager
         license_info = license_manager.get_license_info()
         
         # Display license details
         if license_info['is_valid']:
+            license_valid = True
             license_type = license_info['type']
             days_remaining = license_info['days_remaining']
             max_results = license_info['max_results']
@@ -318,13 +324,83 @@ def main():
             if days_remaining <= 7:
                 st.sidebar.warning(f"⚠️ License expiring in {days_remaining} days!")
         else:
+            license_valid = False
+            license_message = st.session_state.get('license_init_message', 'No license file found')
             st.sidebar.error("❌ No Valid License")
-            st.sidebar.markdown("Contact support for license key.")
+            st.sidebar.markdown("**Action Required:** Activate license to use the application")
     except Exception as e:
-        st.sidebar.warning("⚠️ License check skipped")
-        log_once("license_error", "warning", f"License check error: {str(e)}")
+        license_valid = False
+        license_message = str(e)
+        st.sidebar.error("❌ License Error")
+        st.sidebar.markdown("Unable to validate license")
+        log_once("license_error", "error", f"License check error: {str(e)}")
     
     st.sidebar.markdown("---")
+    
+    # --- Check license before allowing any operations ---
+    if not license_valid:
+        st.error("🔒 License Required")
+        st.markdown("### Application Locked - Valid License Required")
+        st.markdown("""
+        This application requires a valid license to operate. Your current license status:
+        
+        **Status:** ❌ Invalid or Missing
+        
+        **Error:** {error}
+        
+        ---
+        
+        ### 🔑 How to Activate Your License
+        
+        #### Step 1: Get Your Machine Fingerprint
+        
+        Run this command in your terminal:
+        ```bash
+        uv run python -c "from leads_gen.licensing.fingerprint import generate_machine_fingerprint; print(generate_machine_fingerprint())"
+        ```
+        
+        Or using regular Python:
+        ```bash
+        python -c "from leads_gen.licensing.fingerprint import generate_machine_fingerprint; print(generate_machine_fingerprint())"
+        ```
+        
+        #### Step 2: Request a License Key
+        
+        Send your fingerprint to the developer/administrator to receive your license key.
+        
+        #### Step 3: Activate the License
+        
+        Save the license key you received:
+        ```bash
+        echo "YOUR_LICENSE_KEY_HERE" > leads_gen/license.key
+        ```
+        
+        #### Step 4: Restart the Application
+        
+        Refresh this page or restart the Streamlit app to activate your license.
+        
+        ---
+        
+        ### 📞 Need Help?
+        
+        - Check the documentation: `docs/licensing/LICENSING_GUIDE.md`
+        - Contact your system administrator for a license key
+        - Ensure the license file is in the correct location: `leads_gen/license.key`
+        
+        ---
+        
+        ### 💡 For Testing (CLI Only)
+        
+        You can test the application via command line with the `--no-license` flag:
+        ```bash
+        uv run python main.py --query "test query" --max-results 3 --no-license
+        ```
+        
+        **Note:** The `--no-license` flag is only available in CLI mode, not in the web interface.
+        """.format(error=license_message))
+        
+        # Stop execution here - don't show any other UI elements
+        st.stop()
     
     # --- Sidebar: high-level workflow selection ---
     st.sidebar.header("Workflow")
