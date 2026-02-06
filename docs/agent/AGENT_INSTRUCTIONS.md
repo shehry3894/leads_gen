@@ -204,6 +204,7 @@ The app must:
 
 ## 10. Final Guiding Principle
 > Do not create a .md file until it is explicitly asked to
+> Do not use git commands  unless explicitly mentioned
 > This is **not a web app**.  
 > This is **not a SaaS product**.  
 > This is a **local lead-generation tool** designed to feel like a professional desktop application.

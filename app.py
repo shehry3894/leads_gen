@@ -102,6 +102,15 @@ if "is_scraping" not in st.session_state:
 if "workflow_locked" not in st.session_state:
     st.session_state.workflow_locked = False
 
+if "trial_mode" not in st.session_state:
+    st.session_state.trial_mode = False
+
+if "scraping_complete" not in st.session_state:
+    st.session_state.scraping_complete = False  # Track if scraping finished successfully
+
+if "uploaded_file_processed" not in st.session_state:
+    st.session_state.uploaded_file_processed = {}  # Track which files have been written to disk
+
 logger = logging.getLogger("leads_gen")
 
 
@@ -133,6 +142,18 @@ def reset_app_state():
     if st.session_state.workflow_locked:
         cleared_items.append("workflow lock")
         st.session_state.workflow_locked = False
+    
+    if st.session_state.trial_mode:
+        cleared_items.append("trial mode")
+        st.session_state.trial_mode = False
+    
+    if st.session_state.scraping_complete:
+        cleared_items.append("scraping complete flag")
+        st.session_state.scraping_complete = False
+    
+    if st.session_state.uploaded_file_processed:
+        cleared_items.append("uploaded file tracking")
+        st.session_state.uploaded_file_processed = {}
     
     st.session_state.output_dir = OUTPUT_DIR
     
@@ -183,21 +204,34 @@ if "logged_start" not in st.session_state:
 
 
 # --- Utilities ---
-def get_query_and_limit():
-    query = st.text_input('Enter Search Query', 'gyms in New York')
-    max_input = st.text_input('Max Results (Enter "all" for no limit)', '10')
-    max_results = None if max_input.lower() == 'all' else int(max_input) if max_input.isdigit() else None
+def get_query_and_limit(disabled=False):
+    query = st.text_input('Enter Search Query', 'gyms in New York', disabled=disabled)
+    
+    # In trial mode, always use 3 results
+    if st.session_state.trial_mode:
+        st.info("🧪 **Trial Mode Active** - Limited to 3 results per search")
+        max_results = 3
+        log_once(
+            f"trial_mode_query:{query}",
+            "info",
+            "Trial mode: query=%r, max_results=3 (fixed)",
+            query,
+        )
+    else:
+        max_input = st.text_input('Max Results (Enter "all" for no limit)', '10', disabled=disabled)
+        max_results = None if max_input.lower() == 'all' else int(max_input) if max_input.isdigit() else None
 
-    if max_input and max_results is None and max_input.lower() != 'all':
-        st.error('Please enter a valid number or "all".')
-        log_once(f"invalid_max:{max_input}", "warning", "Invalid max results input: %s", max_input)
-    log_once(
-        f"query:{query}|max:{max_results if max_results is not None else 'all'}",
-        "info",
-        "User input: query=%r, max_results=%s",
-        query,
-        max_results if max_results is not None else "all",
-    )
+        if max_input and max_results is None and max_input.lower() != 'all':
+            st.error('Please enter a valid number or "all".')
+            log_once(f"invalid_max:{max_input}", "warning", "Invalid max results input: %s", max_input)
+        log_once(
+            f"query:{query}|max:{max_results if max_results is not None else 'all'}",
+            "info",
+            "User input: query=%r, max_results=%s",
+            query,
+            max_results if max_results is not None else "all",
+        )
+    
     return query, max_results
 
 
@@ -323,7 +357,21 @@ def save_excel(df, file_path):
     if not os.path.exists(st.session_state.output_dir):
         st.info('{st.session_state.output_dir} does not exist! Creating dir...')
         st.session_state.output_dir.mkdir(exist_ok=True)
-    df.to_excel(file_path, index=False)
+    
+    # Log what we're about to save
+    logger.info(f"Saving DataFrame to {file_path}: {len(df)} rows, {len(df.columns)} columns")
+    
+    # Save with explicit engine and ensure write completes
+    df.to_excel(file_path, index=False, engine='openpyxl')
+    
+    # Verify the save by reading back
+    try:
+        verify_df = pd.read_excel(file_path)
+        logger.info(f"Save verified: {len(verify_df)} rows written to {file_path}")
+        if len(verify_df) != len(df):
+            logger.error(f"SAVE MISMATCH! Expected {len(df)} rows but file has {len(verify_df)} rows")
+    except Exception as e:
+        logger.error(f"Could not verify save: {str(e)}")
 
 
 # --- Main Application ---
@@ -390,7 +438,8 @@ def main():
     st.sidebar.markdown("---")
     
     # --- Check license before allowing any operations ---
-    if not license_valid:
+    # Allow trial mode to bypass license check
+    if not license_valid and not st.session_state.trial_mode:
         st.error("🔒 License Required")
         st.markdown("### Application Locked - Valid License Required")
         st.markdown("""
@@ -418,51 +467,62 @@ def main():
         st.markdown("---")
         
         st.markdown("""
-        ### 📋 Activation Steps
+        ### 📋 How to Activate Your License
         
-        **Step 1:** Copy your machine fingerprint shown above
+        **Step 1:** Copy your machine fingerprint shown above (click the copy button)
         
-        **Step 2:** Send the fingerprint to your administrator/developer
+        **Step 2:** Send the fingerprint to your administrator or support team
         
-        **Step 3:** Receive your license key from the administrator
+        **Step 3:** You will receive a license key from the administrator
         
-        **Step 4:** Save the license key to activate:
-        ```bash
-        echo "YOUR_LICENSE_KEY_HERE" > leads_gen/license.key
-        ```
+        **Step 4:** Give the license key to your administrator to activate it on this machine
         
-        **Step 5:** Refresh this page to activate your license
+        **Step 5:** Refresh this page after activation
         
         ---
         
         ### 📞 Need Help?
         
-        - Check the documentation: `docs/licensing/LICENSING_GUIDE.md`
-        - Contact your system administrator for a license key
-        - Ensure the license file is saved in: `leads_gen/license.key`
-        
-        ---
-        
-        ### 💡 For Testing (CLI Only)
-        
-        Developers can test via command line with the `--no-license` flag:
-        ```bash
-        uv run python main.py --query "test query" --max-results 3 --no-license
-        ```
-        
-        **Note:** The `--no-license` flag is only available in CLI mode, not in the web interface.
+        Contact your system administrator or support team with your fingerprint to get a license key.
         """)
+        
+        st.markdown("---")
+        
+        # Trial Mode Option
+        st.markdown("### 🧪 Try Without License (Trial Mode)")
+        st.markdown("**Want to test the app with limited features?**")
+        st.markdown("Trial mode allows you to scrape up to 3 results per search without a license.")
+        
+        if st.button("🧪 Start Trial Mode (3 Results Max)", type="primary", use_container_width=True):
+            st.session_state.trial_mode = True
+            license_valid = True  # Bypass license check for trial
+            logger.info("User activated Trial Mode without license - limited to 3 results")
+            st.rerun()
         
         # Stop execution here - don't show any other UI elements
         st.stop()
     
-    # --- Sidebar: Reset Button ---
+    # --- Sidebar: App Control ---
     st.sidebar.header("🔄 App Control")
     
-    if st.sidebar.button("🔄 Reset App", use_container_width=True, type="secondary"):
-        reset_app_state()
+    # Trial Mode Toggle
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        if st.button("🧪 Trial Mode", use_container_width=True, type="primary" if st.session_state.trial_mode else "secondary"):
+            st.session_state.trial_mode = not st.session_state.trial_mode
+            logger.info(f"Trial mode {'ENABLED' if st.session_state.trial_mode else 'DISABLED'} by user")
+            st.rerun()
+    with col2:
+        if st.button("🔄 Reset", use_container_width=True, type="secondary"):
+            reset_app_state()
     
-    st.sidebar.caption("Click to reset app state and start fresh. Log file continues.")
+    # Show trial mode status
+    if st.session_state.trial_mode:
+        st.sidebar.success("🧪 Trial Mode: ON (3 results max)")
+    else:
+        st.sidebar.caption("Trial Mode: OFF")
+    
+    st.sidebar.caption("Reset: Clear app state, keep logs")
     
     st.sidebar.markdown("---")
     
@@ -488,7 +548,7 @@ def main():
     
     # Show message when workflow is locked
     if st.session_state.workflow_locked:
-        st.sidebar.info("🔒 Workflow locked. Refresh your browser to change modes.")
+        st.sidebar.info("🔒 Workflow locked. Press Reset Button to change modes.")
 
     # Placeholders for progress feedback, reused in both flows
     progress_bar = st.empty()
@@ -531,53 +591,85 @@ def main():
             file_path,
         )
 
-        if st.button("Start Scraping",
-                     disabled=st.session_state.is_scraping,
-                     on_click=start_scraping_callback) and query:
-            log_once(
-                f"start_new:{query}",
-                "info",
-                "Start Scraping button clicked (new mode) for query=%r",
-                query,
-            )
-            st.session_state.scraped_df = None
+        # Disable start button when scraping is in progress OR when scraping is complete
+        start_button_disabled = st.session_state.is_scraping or st.session_state.scraping_complete
+        
+        # Show info message if scraping is complete
+        if st.session_state.scraping_complete:
+            st.success("✅ Scraping completed! Use the Reset button below to start a new scrape.")
+        
+        # Show status message if scraping is in progress
+        if st.session_state.is_scraping and not st.session_state.scraping_complete:
+            st.warning("🔄 Scraping in progress... Please wait.")
+        
+        start_clicked = st.button("Start Scraping",
+                                 disabled=start_button_disabled,
+                                 on_click=start_scraping_callback,
+                                 use_container_width=True)
+        
+        if start_clicked and query:
+                log_once(
+                    f"start_new:{query}",
+                    "info",
+                    "Start Scraping button clicked (new mode) for query=%r",
+                    query,
+                )
+                st.session_state.scraped_df = None
+                st.session_state.scraping_complete = False  # Reset completion flag
 
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+                progress_bar = st.progress(0)
+                status_text = st.empty()
 
-            try:
-                data_raw = perform_scraping(query, max_results, progress_callback=update_progress)
-                # Process and normalize scraped data
-                data = process_scraped_data(data_raw)
-            except Exception:
-                st.error("An unexpected error occurred during scraping. Please check the logs.")
-                logger.error("Scraping failed in new mode for query=%r", query)
+                try:
+                    data_raw = perform_scraping(query, max_results, progress_callback=update_progress)
+                    
+                    # Process and normalize scraped data
+                    data = process_scraped_data(data_raw)
+                    
+                    # Save data to session state
+                    st.session_state.scraped_df = data
+                    st.session_state.query = query
+                    
+                except Exception as e:
+                    logger.error("Scraping failed in new mode for query=%r: %s", query, str(e))
+                    st.error("An unexpected error occurred during scraping. Please check the logs.")
+                    st.session_state.is_scraping = False
+                    return
+
+                # Reset flags
                 st.session_state.is_scraping = False
-                return
-
-            st.session_state.scraped_df = data
-            st.session_state.query = query
-
-            status_text.success("✅ Finished successfully.")
-            progress_bar.empty()
-
-            st.session_state.is_scraping = False
-
-            save_excel(st.session_state.scraped_df, file_path)
-            logger.info(
-                "New Excel file saved: %s (rows=%s)",
-                file_path,
-                len(st.session_state.scraped_df.index),
-            )
-
-            file_name = Path(file_path).name
-            st.code(f"New file created: {file_name}\nLocation: {file_path}", language="text")
+                st.session_state.scraping_complete = True
+                
+                # Save results to Excel
+                if len(data) > 0:
+                    save_excel(st.session_state.scraped_df, file_path)
+                    logger.info(
+                        "Excel file saved: %s (rows=%s)",
+                        file_path,
+                        len(st.session_state.scraped_df.index)
+                    )
+                    st.success("✅ Scraping completed successfully!")
+                    
+                    file_name = Path(file_path).name
+                    st.code(f"File created: {file_name}\nLocation: {file_path}", language="text")
+                else:
+                    st.warning("No data was collected.")
 
     elif scrape_option == 'append':
         st.subheader("Append new leads to an existing file")
         file_path = None
+        
+        # Show info if inputs are disabled
+        if st.session_state.scraping_complete:
+            st.info("✅ Scraping complete! File selection is locked. Use the Reset button to start a new scrape.")
 
-        uploaded_file = st.file_uploader('Upload an existing Excel file (.xlsx)', type=['xlsx'])
+        # Disable file upload if scraping is complete to prevent overwriting merged file
+        uploaded_file = st.file_uploader(
+            'Upload an existing Excel file (.xlsx)', 
+            type=['xlsx'],
+            disabled=st.session_state.scraping_complete,
+            help="Upload disabled after scraping completes. Use Reset to upload a new file." if st.session_state.scraping_complete else None
+        )
         
         # If file is uploaded, save it to OUTPUT_DIR and show the path
         uploaded_file_path = ""
@@ -585,18 +677,27 @@ def main():
             # Save uploaded file to OUTPUT_DIR (same location where we save new files)
             uploaded_file_path = str(OUTPUT_DIR / uploaded_file.name)
             
-            # Write the uploaded file to disk
-            with open(uploaded_file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
+            # Create a unique key for this upload (filename + size)
+            upload_key = f"{uploaded_file.name}_{uploaded_file.size}"
             
-            logger.info(f"Uploaded file saved to: {uploaded_file_path}")
+            # Only write the uploaded file ONCE and not after scraping completes
+            # This prevents overwriting the merged file after scraping
+            if upload_key not in st.session_state.uploaded_file_processed and not st.session_state.scraping_complete:
+                # Write the uploaded file to disk
+                with open(uploaded_file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                
+                st.session_state.uploaded_file_processed[upload_key] = True
+                logger.info(f"Uploaded file saved to: {uploaded_file_path}")
+            else:
+                logger.debug(f"Skipping file upload write - already processed or scraping complete")
 
         path_input = st.text_input(
             "Or provide the full path to an existing local Excel file",
             value=uploaded_file_path if uploaded_file is not None else "",
             placeholder="C:/Users/Name/Documents/leads.xlsx",
-            disabled=uploaded_file is not None,
-            help="If you don't upload a file above, this local path will be used.",
+            disabled=uploaded_file is not None or st.session_state.scraping_complete,
+            help="Input disabled after scraping completes. Use Reset to select a new file." if st.session_state.scraping_complete else "If you don't upload a file above, this local path will be used.",
         )
 
         # Logic to decide which path to use
@@ -631,18 +732,36 @@ def main():
                 )
 
         if (not error) and path_input:
-            try:
-                df_existing = pd.read_excel(path_input)
-                logger.info("Existing file loaded from %s (rows=%s)", path_input, len(df_existing.index))
-            except Exception:
-                st.error("Failed to read the existing Excel file. Please verify the file and try again.")
-                logger.exception("Failed to read existing Excel file")
-                return
+            # Only load the file if we don't already have scraped data from append mode
+            # This prevents reloading the original file after we've saved the merged data
+            if st.session_state.scraped_df is None or not st.session_state.scraping_complete:
+                try:
+                    df_existing = pd.read_excel(path_input)
+                    logger.info("Existing file loaded from %s (rows=%s)", path_input, len(df_existing.index))
+                except Exception:
+                    st.error("Failed to read the existing Excel file. Please verify the file and try again.")
+                    logger.exception("Failed to read existing Excel file")
+                    return
+            else:
+                # If scraping is complete, reload the merged file to show updated data
+                try:
+                    df_existing = pd.read_excel(path_input)
+                    logger.info("Reloading updated file after append: %s (rows=%s)", path_input, len(df_existing.index))
+                except Exception:
+                    logger.error("Failed to reload updated file, using session state data")
+                    df_existing = st.session_state.scraped_df
 
-            st.write('Existing Data...')
-            render_dataframe(render_clickable_links(df_existing))
+            # Show current data - merged if available, otherwise original
+            if st.session_state.scraped_df is not None and st.session_state.scraping_complete:
+                st.write('Current Data (After Merge)...')
+                st.info(f"Showing merged results: {len(st.session_state.scraped_df)} total rows")
+                render_dataframe(render_clickable_links(st.session_state.scraped_df))
+            else:
+                st.write('Existing Data (Before Scraping)...')
+                render_dataframe(render_clickable_links(df_existing))
 
-            query, max_results = get_query_and_limit()
+            # Disable query/max inputs if scraping is complete
+            query, max_results = get_query_and_limit(disabled=st.session_state.scraping_complete)
             file_name = f'{query.replace(" ", "_")}.xlsx'
             file_path = os.path.join(OUTPUT_DIR, file_name)
             if path_input:
@@ -655,9 +774,24 @@ def main():
                 file_path,
             )
 
-            if st.button("Start Scraping",
-                         disabled=st.session_state.is_scraping,
-                         on_click=start_scraping_callback) and query:
+            # Disable start button when scraping is in progress OR when scraping is complete
+            start_button_disabled_append = st.session_state.is_scraping or st.session_state.scraping_complete
+            
+            # Show info message if scraping is complete
+            if st.session_state.scraping_complete:
+                st.success("✅ Scraping completed! Use the Reset button below to start a new scrape.")
+            
+            # Show status message if scraping is in progress
+            if st.session_state.is_scraping and not st.session_state.scraping_complete:
+                st.warning("🔄 Scraping in progress... Please wait.")
+            
+            start_clicked_append = st.button("Start Scraping",
+                                            disabled=start_button_disabled_append,
+                                            on_click=start_scraping_callback,
+                                            use_container_width=True,
+                                            key="start_append_btn")
+            
+            if start_clicked_append and query:
                 log_once(
                     f"start_append:{query}",
                     "info",
@@ -665,52 +799,64 @@ def main():
                     query,
                 )
                 st.session_state.scraped_df = None
+                st.session_state.scraping_complete = False  # Reset completion flag
 
                 progress_bar = st.progress(0)
                 status_text = st.empty()
 
+                # Initialize variables
+                new_data = pd.DataFrame()
+                data = pd.DataFrame()
+                
                 try:
                     new_data_raw = perform_scraping(query, max_results, progress_callback=update_progress)
+                    
                     # Process and normalize new scraped data
                     new_data = process_scraped_data(new_data_raw)
-                except Exception:
+                    
+                    # Combine existing and new data, then deduplicate
+                    data = pd.concat([df_existing, new_data], ignore_index=True)
+                    from leads_gen.core.data_normalization import deduplicate_dataframe
+                    data = deduplicate_dataframe(data)
+                    logger.info(
+                        "Append mode: existing rows=%s, new rows=%s, combined rows=%s",
+                        len(df_existing.index),
+                        len(new_data.index),
+                        len(data.index),
+                    )
+
+                    # Save data to session state
+                    st.session_state.scraped_df = data
+                    st.session_state.query = query
+                    
+                except Exception as e:
+                    logger.error("Scraping failed in append mode for query=%r: %s", query, str(e))
                     st.error("An unexpected error occurred during scraping. Please check the logs.")
-                    logger.error("Scraping failed in append mode for query=%r", query)
                     st.session_state.is_scraping = False
                     return
 
-                # Combine existing and new data, then deduplicate
-                data = pd.concat([df_existing, new_data], ignore_index=True)
-                # Re-deduplicate the combined dataset
-                from utils.data_normalization import deduplicate_dataframe
-                data = deduplicate_dataframe(data)
-                logger.info(
-                    "Append mode: existing rows=%s, new rows=%s, combined rows=%s",
-                    len(df_existing.index),
-                    len(new_data.index),
-                    len(data.index),
-                )
-
-                st.session_state.scraped_df = data
-                st.session_state.query = query
-
-                status_text.text("✅ Updated file ready.")
-                progress_bar.empty()
-
+                # Reset flags
                 st.session_state.is_scraping = False
+                st.session_state.scraping_complete = True
 
-                save_excel(st.session_state.scraped_df, file_path)
-                logger.info(
-                    "Existing Excel file updated: %s (rows=%s)",
-                    file_path,
-                    len(st.session_state.scraped_df.index),
-                )
-
-                file_name = Path(file_path).name
-                st.code(
-                    f"Existing file updated: {file_name}\nLocation: {file_path}",
-                    language="text",
-                )
+                # Save the combined data
+                if st.session_state.scraped_df is not None and len(st.session_state.scraped_df) > 0:
+                    save_excel(st.session_state.scraped_df, file_path)
+                    logger.info(
+                        "Existing Excel file updated: %s (total rows=%s, new rows=%s)",
+                        file_path,
+                        len(st.session_state.scraped_df),
+                        len(new_data)
+                    )
+                    st.success(f"✅ Scraping completed successfully! Added {len(new_data)} new rows (total: {len(st.session_state.scraped_df)} rows).")
+                    
+                    file_name = Path(file_path).name
+                    st.code(
+                        f"Existing file updated: {file_name}\nLocation: {file_path}",
+                        language="text",
+                    )
+                else:
+                    st.warning("No new data was collected.")
 
     if file_path and (st.session_state.scraped_df is not None):
         st.subheader("Result")

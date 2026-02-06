@@ -104,6 +104,8 @@ def scrape_business_data(driver, max_results):
     
     logger.info(f'Starting to scrape {len(results)} business results.')
 
+    scraped_links = set()  # Track which businesses we've already scraped to avoid duplicates
+    
     for i in range(len(results)):
         if max_results is not None and i >= max_results:
             logger.info(f'Reached the max results limit: {max_results}')
@@ -115,14 +117,50 @@ def scrape_business_data(driver, max_results):
                 logger.warning(f'Result {i} no longer available')
                 continue
             
+            # STEP 1: Extract the expected business name from the list card BEFORE clicking
+            expected_name = None
+            try:
+                # Try to get business name from the list item
+                name_elem = results[i].find_element(By.CSS_SELECTOR, 'div.fontHeadlineSmall')
+                expected_name = name_elem.text.strip() if name_elem else None
+                logger.debug(f'Expected business name from list: {expected_name}')
+            except Exception as e:
+                logger.debug(f'Could not get expected name from list item: {str(e)}')
+            
+            # Get the aria-label or href to identify this business uniquely
+            try:
+                link_elem = results[i].find_element(By.TAG_NAME, 'a')
+                business_href = link_elem.get_attribute('href') if link_elem else None
+                business_label = results[i].get_attribute('aria-label') or ''
+                
+                # If we didn't get expected_name, try from aria-label
+                if not expected_name and business_label:
+                    expected_name = business_label.split('·')[0].strip()
+                
+                # Create a unique identifier
+                unique_id = business_href or business_label
+                
+                # Skip if we've already scraped this business
+                if unique_id and unique_id in scraped_links:
+                    logger.info(f'Skipping duplicate business at index {i}: {business_label[:50]}...')
+                    continue
+                    
+            except Exception as e:
+                logger.debug(f'Could not get unique ID for result {i}: {str(e)}')
+                unique_id = None
+            
             # Scroll element into view
             driver.execute_script('arguments[0].scrollIntoView({block: "center"});', results[i])
             time.sleep(0.3)  # Brief pause for scroll animation
             
-            # Click with retry logic
+            # STEP 2: Click the business card
             def click_business_card():
-                results[i].click()
-                return True
+                # Re-fetch the element to avoid stale reference
+                fresh_results = driver.find_elements(By.XPATH, '//div[contains(@class, "Nv2PK")]')
+                if i < len(fresh_results):
+                    fresh_results[i].click()
+                    return True
+                return False
             
             success, _ = smart_wait.retry_with_backoff(
                 click_business_card,
@@ -132,35 +170,73 @@ def scrape_business_data(driver, max_results):
             if not success:
                 logger.warning(f'Failed to click business card {i+1}')
                 continue
+                
+            # Mark this business as scraped
+            if unique_id:
+                scraped_links.add(unique_id)
             
-            # Wait for info panel to load (h1 is the business name)
-            info_timeout = WAIT_CONFIG.get('info_panel', 10)
+            # STEP 3: Wait for the info panel container to appear
             info_panel = smart_wait.wait_for_element(
                 By.XPATH,
-                '//h1',
-                timeout=info_timeout,
+                '//div[contains(@class, "m6QErb")]',
+                timeout=WAIT_CONFIG.get('info_panel', 10),
                 condition='presence'
             )
             
             if not info_panel:
                 logger.warning(f'Info panel did not load for business {i+1}')
                 continue
-
-            # Extract business name with multiple fallback selectors
+            
+            # STEP 4: Wait for the SPECIFIC business name to appear in the detail panel
             name = "N/A"
-            name_selectors = [
-                (By.XPATH, '//h1[contains(@class,"DUwDvf")]'),
-                (By.XPATH, '//h1[@class="DUwDvf lfPIob"]'),
-                (By.CSS_SELECTOR, 'h1.DUwDvf'),
-                (By.XPATH, '//div[@role="main"]//h1'),
-                (By.TAG_NAME, 'h1'),
-            ]
-            for by_type, selector in name_selectors:
-                elem = smart_wait.wait_for_element(by_type, selector, timeout=2, condition='visibility')
-                if elem and elem.text.strip():
-                    name = elem.text.strip()
-                    logger.debug(f'Found name with {by_type}: {selector}')
-                    break
+            if expected_name:
+                logger.debug(f'Waiting for expected name "{expected_name}" to appear in detail panel...')
+                # Wait for h1 with the expected name to appear
+                max_wait_for_name = 15  # seconds
+                name_found = False
+                
+                for attempt in range(max_wait_for_name):
+                    try:
+                        h1_elements = driver.find_elements(By.XPATH, '//div[contains(@class, "m6QErb")]//h1[contains(@class,"DUwDvf")]')
+                        for h1 in h1_elements:
+                            h1_text = h1.text.strip()
+                            if h1_text and h1_text.lower() != "results" and expected_name.lower() in h1_text.lower():
+                                name = h1_text
+                                name_found = True
+                                logger.info(f'✓ Expected name found in detail panel: {name}')
+                                break
+                        
+                        if name_found:
+                            break
+                        
+                        time.sleep(1)
+                    except Exception as e:
+                        logger.debug(f'Error checking for name: {str(e)}')
+                        time.sleep(1)
+                
+                if not name_found:
+                    logger.warning(f'Expected name "{expected_name}" did not appear after {max_wait_for_name}s, proceeding anyway')
+            
+            # STEP 5: If we still don't have the name, try standard extraction
+            if name == "N/A":
+                name_selectors = [
+                    (By.XPATH, '//div[contains(@class, "m6QErb")]//h1[contains(@class,"DUwDvf")]'),
+                    (By.XPATH, '//div[@role="main"]//h1[contains(@class,"DUwDvf")]'),
+                    (By.CSS_SELECTOR, 'h1.DUwDvf.lfPIob'),
+                ]
+                for by_type, selector in name_selectors:
+                    elem = smart_wait.wait_for_element(by_type, selector, timeout=3, condition='visibility')
+                    if elem and elem.text.strip() and elem.text.strip().lower() != "results":
+                        name = elem.text.strip()
+                        break
+            
+            # Final check
+            if name in ["N/A", "Results"]:
+                logger.warning(f'Business {i+1}: Could not extract valid name, got "{name}"')
+            
+            # STEP 6: Wait a bit more to ensure ALL details are loaded
+            logger.debug(f'Name confirmed, waiting for all details to load...')
+            time.sleep(2)  # Extra wait for address, phone, website, etc. to load
             
             # Extract address with multiple fallback selectors
             address = "N/A"
@@ -259,6 +335,14 @@ def scrape_business_data(driver, max_results):
                             break
             
             short_link = driver.current_url  # Get current Google Maps short URL
+            
+            # Double-check: Skip if we've already scraped this URL
+            if short_link in scraped_links:
+                logger.warning(f'Duplicate detected by URL: {short_link} - skipping')
+                continue
+            
+            # Mark this URL as scraped
+            scraped_links.add(short_link)
 
             social_links = extract_social_and_email_links(website) if website != "N/A" else {
                 'Facebook': None, 'Instagram': None, 'Twitter': None, 'LinkedIn': None,
@@ -291,6 +375,7 @@ def scrape_business_data(driver, max_results):
                 'Scraped Time': scraped_time
 
             })
+            
             # Log detailed business information
             logger.info(f'✓ Scraped business {i + 1}/{len(results)}: {name}')
             logger.info(f'  └─ Google Maps: {short_link}')

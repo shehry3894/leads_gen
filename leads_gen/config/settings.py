@@ -1,10 +1,12 @@
 import logging
+import os
 
 # Configure logging for this module
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Add headless mode configuration
-HEADLESS_MODE = False  # ✅ Change to False when debugging with browser
+# Read from environment variable, default to True (headless mode)
+HEADLESS_MODE = os.getenv('HEADLESS_MODE', 'true').lower() in ('true', '1', 'yes')
 TRIAL = True  # ✅ Limits to 3 results for quick testing
 TESTING = False  # ✅ Disabled to enable real Google Maps scraping
 

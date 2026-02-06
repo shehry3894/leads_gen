@@ -212,6 +212,27 @@ uv run python main.py --help
 - `--version`: Show version information
 - `--help`: Display help message
 
+**Environment Variables:**
+
+Control application behavior using environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HEADLESS_MODE` | `true` | Run Chrome browser in headless mode (no visible window). Set to `false` to see the browser during scraping (useful for debugging). |
+
+**Examples:**
+
+```bash
+# Run with visible browser (for debugging)
+HEADLESS_MODE=false uv run streamlit run app.py
+
+# Or for CLI
+HEADLESS_MODE=false uv run python main.py --query "gyms in NYC" --max-results 10
+
+# Run in headless mode (default - no need to specify)
+uv run streamlit run app.py
+```
+
 ---
 
 ### Method 3: Docker (No Local Setup Required)
