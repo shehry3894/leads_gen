@@ -73,4 +73,3 @@ def get_demo_leads():
             "Scraped Time": now,
         },
     ]
-

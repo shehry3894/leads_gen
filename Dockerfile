@@ -2,15 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements.txt first to leverage caching
-COPY requirements.txt .
+# Install uv up front (rarely changes → cached layer)
+RUN pip install --no-cache-dir uv
 
-# Install uv and project dependencies (using requirements.txt inside the container)
-RUN pip install --no-cache-dir uv \
-    && uv pip install --no-cache-dir -r requirements.txt
-
-# Copy the entire project into the container
+# Copy the project and install dependencies from pyproject.toml
 COPY . .
+RUN uv pip install --system --no-cache-dir .
 
 EXPOSE 8501
 

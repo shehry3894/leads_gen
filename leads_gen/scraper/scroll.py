@@ -1,10 +1,8 @@
-import time
 import logging
+import time
 
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from leads_gen.config.settings import TRIAL, WAIT_CONFIG
 from leads_gen.utils.wait_utils import SmartWait
@@ -15,26 +13,23 @@ logger = logging.getLogger("leads_gen")
 def scroll_results(driver, max_results):
     if TRIAL:
         max_results = 3
-        logger.info(f'Setting max results to {max_results} since you are using trial version')
+        logger.info(f"Setting max results to {max_results} since you are using trial version")
 
-    logger.info('Starting the scroll process.')
+    logger.info("Starting the scroll process.")
     smart_wait = SmartWait(driver)
 
     try:
         # Wait for the scrollable results feed to be present with smart wait
-        timeout = WAIT_CONFIG.get('search_results', 15)
+        timeout = WAIT_CONFIG.get("search_results", 15)
         scrollable_div = smart_wait.wait_for_element(
-            By.XPATH,
-            '//div[@role="feed"]',
-            timeout=timeout,
-            condition='presence'
+            By.XPATH, '//div[@role="feed"]', timeout=timeout, condition="presence"
         )
-        
+
         if not scrollable_div:
-            logger.error('Scrollable feed not found')
+            logger.error("Scrollable feed not found")
             return
-        
-        logger.info('Scrollable feed found.')
+
+        logger.info("Scrollable feed found.")
 
         collected = 0
         same_count_retries = 0
@@ -43,12 +38,12 @@ def scroll_results(driver, max_results):
         while True:
             # Scroll to bottom of scrollable_div
             driver.execute_script(
-                'arguments[0].scrollTop = arguments[0].scrollHeight', scrollable_div
+                "arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div
             )
-            logger.debug('Scrolled to bottom.')
+            logger.debug("Scrolled to bottom.")
 
             # Wait briefly for new results to load, then check
-            time.sleep(WAIT_CONFIG.get('base_wait', 1.0))
+            time.sleep(WAIT_CONFIG.get("base_wait", 1.0))
 
             results = driver.find_elements(By.XPATH, '//div[contains(@class, "Nv2PK")]')
             current_count = len(results)
@@ -56,21 +51,21 @@ def scroll_results(driver, max_results):
             if current_count > collected:
                 collected = current_count
                 same_count_retries = 0
-                logger.info(f'Collected {collected} results so far.')
+                logger.info(f"Collected {collected} results so far.")
             else:
                 same_count_retries += 1
-                logger.info(f'No new results. Retry {same_count_retries}/{max_retries}')
+                logger.info(f"No new results. Retry {same_count_retries}/{max_retries}")
                 if same_count_retries >= max_retries:
-                    logger.info('No more results to load or max retries reached.')
+                    logger.info("No more results to load or max retries reached.")
                     break
 
-            if max_results and collected >= max_results:
-                logger.info(f'Reached requested max results: {max_results}')
+            if max_results is not None and collected >= max_results:
+                logger.info(f"Reached requested max results: {max_results}")
                 break
 
-        logger.info(f'Scrolling finished. Total results collected: {collected}')
+        logger.info(f"Scrolling finished. Total results collected: {collected}")
 
     except TimeoutException:
-        logger.error('Timed out waiting for scrollable feed.')
+        logger.error("Timed out waiting for scrollable feed.")
     except Exception as e:
-        logger.error(f'Unexpected error during scroll: {e}')
+        logger.error(f"Unexpected error during scroll: {e}")
