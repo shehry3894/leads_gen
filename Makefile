@@ -1,10 +1,18 @@
-.PHONY: help install install-build ui cli test test-all test-live test-live-visible test-ui test-ui-visible fingerprint build clean lint format typecheck check quality
+.PHONY: help install install-build ui cli test test-all test-live test-live-visible test-ui test-ui-visible fingerprint license build clean lint format typecheck check quality
 
 PYTHON ?= uv run python
 UV     ?= uv
 
 # Paths passed to the quality tools. Keep this in sync with pyproject exclude lists.
 CODE_PATHS := leads_gen tests tools app.py main.py
+
+# --- Build metadata ---
+# Version is read from leads_gen/version.py, arch from uname. Pure-shell (no
+# Python invocation) so `make help` stays fast. Windows AMD64 normalises to
+# x86_64 so builds across Intel Mac, Linux x64, and Windows x64 share a name.
+BUILD_VERSION := $(shell awk -F'"' '/^__version__/ {print $$2}' leads_gen/version.py 2>/dev/null)
+BUILD_ARCH := $(shell uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed 's/amd64/x86_64/')
+BUILD_NAME := leads-gen_$(BUILD_ARCH)_$(BUILD_VERSION)
 
 help:
 	@echo "Targets:"
@@ -24,7 +32,13 @@ help:
 	@echo "  check          Verify format/lint/types/tests (read-only; for CI)"
 	@echo "  quality        Auto-fix format + lint, then run typecheck + tests (one-shot dev command)"
 	@echo "  fingerprint    Print the machine fingerprint for licensing"
+	@echo "  license        (Issuer-only) Generate a license key for a customer."
+	@echo "                 Required: FINGERPRINT=<64-char-hash> MAX_RESULTS_PER_RUN=<int>"
+	@echo "                 Pick one duration: DAYS=<int> | MONTHS=<int> | EXPIRY_DATE=YYYY-MM-DD"
+	@echo "                 Optional: TEST_DECODE=1 (verify the key round-trips before printing)"
 	@echo "  build          Build the standalone GUI executable"
+	@echo "                 Output: dist/leads-gen_<arch>_<version> (e.g. leads-gen_arm64_1.0.0)"
+	@echo "                 arch/version come from uname -m + leads_gen/version.py"
 	@echo "  clean          Remove build/dist artifacts"
 
 install:
@@ -76,9 +90,30 @@ test-all:
 fingerprint:
 	$(PYTHON) -c "from leads_gen.licensing.fingerprint import generate_machine_fingerprint; print(generate_machine_fingerprint())"
 
+# Issuer-only. tools/generate_license.py holds the SECRET_KEY and is not shipped
+# with the distributed binary. Never expose this target on a customer machine.
+#
+# Usage:
+#   make license FINGERPRINT=abc123... MAX_RESULTS_PER_RUN=500 DAYS=30
+#   make license FINGERPRINT=abc123... MAX_RESULTS_PER_RUN=5000 MONTHS=12
+#   make license FINGERPRINT=abc123... MAX_RESULTS_PER_RUN=1000 EXPIRY_DATE=2027-06-30
+#   make license FINGERPRINT=abc123... MAX_RESULTS_PER_RUN=500 DAYS=30 TEST_DECODE=1
+license:
+	@if [ -z "$(FINGERPRINT)" ]; then echo "Error: FINGERPRINT is required. e.g. make license FINGERPRINT=<64-char-hash> MAX_RESULTS_PER_RUN=500 DAYS=30"; exit 1; fi
+	@if [ -z "$(MAX_RESULTS_PER_RUN)" ]; then echo "Error: MAX_RESULTS_PER_RUN is required. e.g. make license FINGERPRINT=<hash> MAX_RESULTS_PER_RUN=500 DAYS=30"; exit 1; fi
+	@if [ -z "$(DAYS)$(MONTHS)$(EXPIRY_DATE)" ]; then echo "Error: pick one of DAYS=<int>, MONTHS=<int>, or EXPIRY_DATE=YYYY-MM-DD"; exit 1; fi
+	$(PYTHON) tools/generate_license.py \
+		--fingerprint $(FINGERPRINT) \
+		--max-results $(MAX_RESULTS_PER_RUN) \
+		$(if $(DAYS),--days $(DAYS)) \
+		$(if $(MONTHS),--months $(MONTHS)) \
+		$(if $(EXPIRY_DATE),--expiry-date $(EXPIRY_DATE)) \
+		$(if $(TEST_DECODE),--test-decode)
+
 build:
+	@echo "==> Building $(BUILD_NAME) (arch=$(BUILD_ARCH), version=$(BUILD_VERSION))"
 	$(UV) run streamlit-desktop-app build app.py \
-		--name leads_gen \
+		--name $(BUILD_NAME) \
 		--pyinstaller-options \
 			--onefile \
 			--clean \
@@ -98,6 +133,7 @@ build:
 			--collect-all selenium \
 			--collect-all webdriver_manager \
 			--collect-all xlsxwriter
+	@echo "==> Built dist/$(BUILD_NAME)"
 
 clean:
 	rm -rf build/ dist/
