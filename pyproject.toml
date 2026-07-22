@@ -44,6 +44,123 @@ dependencies = [
   "xlsxwriter==3.2.3",
 ]
 
-[tool.uv]
-dev-dependencies = []
+[project.optional-dependencies]
+build = [
+  "streamlit-desktop-app==0.3.4",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6.0",
+  "black>=24.0",
+  "isort>=5.13",
+  "mypy>=1.11",
+  "types-requests",
+]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["leads_gen"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers -m 'not live and not ui'"
+markers = [
+    "live: hits real network / launches a real browser (skipped by default)",
+    "ui: drives the Streamlit UI in a real browser (skipped by default)",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = '''
+/(
+    \.venv
+  | venv
+  | build
+  | dist
+  | leads_gen\.egg-info
+  | \.beads
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["leads_gen"]
+skip = ["venv", ".venv", "build", "dist", "leads_gen.egg-info"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "venv",
+    ".venv",
+    "build",
+    "dist",
+    "leads_gen.egg-info",
+    ".beads",
+]
+
+[tool.ruff.lint]
+# Pragmatic ruleset: catch real bugs and stylistic issues, skip pedantry.
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused, undefined, etc.)
+    "I",   # isort
+    "B",   # flake8-bugbear (likely bugs)
+    "UP",  # pyupgrade (modern syntax)
+    "C4",  # comprehensions
+    "SIM", # simplifications
+    "RET", # return statement quirks
+    "T20", # print/pprint usage
+]
+ignore = [
+    "E501",   # line-too-long (black handles it)
+    "B008",   # do not perform function call in argument defaults (fine for FastAPI/Selenium)
+    "SIM108", # ternary vs if/else (readability trade-off)
+    "RET504", # unnecessary assignment before return (often clearer)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# main.py & tools/generate_license.py are CLI entry points; print() is expected.
+"main.py" = ["T20"]
+"tools/**" = ["T20"]
+# app.py uses st.stop() control flow, and print() for pre-logging bootstrap output is fine.
+"app.py" = ["T20"]
+# Licensing modules have `if __name__ == "__main__"` CLI harnesses that print to stdout;
+# runtime code paths use the leads_gen logger.
+"leads_gen/licensing/fingerprint.py" = ["T20"]
+"leads_gen/licensing/license_manager.py" = ["T20"]
+"leads_gen/licensing/license_model.py" = ["T20"]
+# Tests: allow assert-in-catch patterns, unused fixtures, and diagnostic prints.
+"tests/**" = ["B011", "F401", "F811", "T20"]
+
+[tool.mypy]
+python_version = "3.11"
+# Pragmatic: report obvious mistakes without demanding annotations everywhere.
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unreachable = true
+no_implicit_optional = true
+check_untyped_defs = true
+ignore_missing_imports = true
+exclude = [
+    "venv",
+    "build",
+    "dist",
+    "leads_gen\\.egg-info",
+    "tests",
+]
+
+[[tool.mypy.overrides]]
+module = "leads_gen.*"
+disallow_untyped_defs = false
+warn_return_any = false
 
