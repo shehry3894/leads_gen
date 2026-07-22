@@ -505,26 +505,39 @@ def main():
             max_results = license_info["max_results"]
             expiry_date = license_info["expiry_date"]
 
-            # Color-code based on days remaining
+            # Color-code + status label based on urgency.
+            # Green = healthy, orange = renew soon, red = expiring imminently.
+            # The label matches the color so 🔴 never appears next to "Active".
             if days_remaining > 30:
                 status_emoji = "✅"
                 status_color = "green"
+                status_label = "Active"
             elif days_remaining > 7:
                 status_emoji = "⚠️"
                 status_color = "orange"
+                status_label = "Active"
+            elif days_remaining >= 1:
+                status_emoji = "🔴"
+                status_color = "red"
+                status_label = "Expires soon"
             else:
                 status_emoji = "🔴"
                 status_color = "red"
+                status_label = "Expires today"
+
+            day_word = "day" if days_remaining == 1 else "days"
 
             st.sidebar.markdown(f"**License Type:** {license_type}")
-            st.sidebar.markdown(f"**Status:** {status_emoji} Active")
+            st.sidebar.markdown(f"**Status:** {status_emoji} {status_label}")
             st.sidebar.markdown(f"**Expires:** {expiry_date}")
-            st.sidebar.markdown(f"**Days Remaining:** :{status_color}[{days_remaining} days]")
+            st.sidebar.markdown(
+                f"**Days Remaining:** :{status_color}[{days_remaining} {day_word}]"
+            )
             st.sidebar.markdown(f"**Max Results:** {max_results} per run")
 
-            # Warning if expiring soon
+            # Warning banner when we're inside the red bucket
             if days_remaining <= 7:
-                st.sidebar.warning(f"⚠️ License expiring in {days_remaining} days!")
+                st.sidebar.warning(f"⚠️ License expiring in {days_remaining} {day_word}!")
         else:
             license_valid = False
             license_message = st.session_state.get("license_init_message", "No license file found")
@@ -536,6 +549,54 @@ def main():
         st.sidebar.error("❌ License Error")
         st.sidebar.markdown("Unable to validate license")
         log_once("license_error", "error", f"License check error: {str(e)}")
+
+    # --- Sidebar: License Activation ---
+    # Paste-and-activate flow. Validates against this machine BEFORE persisting,
+    # so a bad key can never overwrite a working license.key on disk.
+    with st.sidebar.expander(
+        "🔑 " + ("Activate license key" if not license_valid else "Update license key"),
+        expanded=not license_valid,
+    ):
+        pasted_license_key = st.text_area(
+            "License key",
+            key="license_key_input",
+            height=110,
+            placeholder="Paste the license key you received from support",
+            help="The full base64 string. Line breaks are OK — they'll be stripped before saving.",
+            label_visibility="collapsed",
+        )
+        if st.button(
+            "Activate",
+            key="license_activate_btn",
+            type="primary",
+            use_container_width=True,
+        ):
+            cleaned_license_key = (
+                pasted_license_key.replace("\n", "").replace("\r", "").strip()
+                if pasted_license_key
+                else ""
+            )
+            if not cleaned_license_key:
+                st.warning("Please paste a license key first.")
+            else:
+                candidate_manager = LicenseManager()
+                candidate_manager.load_license_from_string(cleaned_license_key)
+                is_valid, activation_error = candidate_manager.validate_license()
+                if not is_valid:
+                    st.error(f"❌ {activation_error}")
+                    logger.warning(f"License activation rejected: {activation_error}")
+                elif not candidate_manager.save_license_to_file():
+                    st.error(
+                        "License is valid but couldn't be saved to disk. "
+                        "Check folder permissions and try again."
+                    )
+                else:
+                    st.session_state.license_manager = candidate_manager
+                    st.session_state.license_init_success = True
+                    st.session_state.license_init_message = "License activated via UI"
+                    logger.info("License activated successfully via UI")
+                    st.success("✅ License activated!")
+                    st.rerun()
 
     st.sidebar.markdown("---")
 
@@ -579,11 +640,9 @@ def main():
 
         **Step 2:** Send the fingerprint to your administrator or support team
 
-        **Step 3:** You will receive a license key from the administrator
+        **Step 3:** You will receive a license key by email
 
-        **Step 4:** Give the license key to your administrator to activate it on this machine
-
-        **Step 5:** Refresh this page after activation
+        **Step 4:** Paste the key into the **🔑 Activate license key** box in the sidebar and click **Activate**. The app unlocks immediately — no refresh needed.
 
         ---
 
