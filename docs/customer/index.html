@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Leads Gen — Getting Started</title>
+<meta name="description" content="Download, install, and license the Leads Gen app for Google Maps business scraping." />
+<style>
+  :root {
+    --color-bg: #ffffff;
+    --color-bg-alt: #f8fafc;
+    --color-bg-code: #f1f5f9;
+    --color-border: #e2e8f0;
+    --color-border-strong: #cbd5e1;
+    --color-text: #0f172a;
+    --color-text-muted: #64748b;
+    --color-primary: #2563eb;
+    --color-primary-dark: #1d4ed8;
+    --color-primary-soft: #eff6ff;
+    --color-accent: #f59e0b;
+    --color-accent-soft: #fef3c7;
+    --color-success: #059669;
+    --color-success-soft: #d1fae5;
+    --color-danger: #dc2626;
+    --color-danger-soft: #fee2e2;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+    --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.08);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-ui);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--color-primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  code, pre {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+  }
+  code {
+    background: var(--color-bg-code);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: #334155;
+    border: 1px solid var(--color-border);
+  }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 16px 20px;
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    position: relative;
+    margin: 12px 0;
+    box-shadow: var(--shadow-sm);
+  }
+  pre code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font-size: 0.9em;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    transition: background 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { background: rgba(255, 255, 255, 0.16); color: #f1f5f9; }
+  .copy-btn.copied { background: var(--color-success); color: #fff; border-color: var(--color-success); }
+
+  /* Header / nav */
+  header.site {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--color-border);
+  }
+  header.site .inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  header.site .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+  header.site .brand-logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+  header.site nav ul {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex;
+    gap: 22px;
+  }
+  header.site nav a {
+    color: var(--color-text-muted);
+    font-size: 14px;
+    font-weight: 500;
+  }
+  header.site nav a:hover { color: var(--color-text); text-decoration: none; }
+  header.site .nav-cta {
+    background: var(--color-primary);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.15s, transform 0.15s;
+  }
+  header.site .nav-cta:hover { background: var(--color-primary-dark); text-decoration: none; }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 64px 0; border-bottom: 1px solid var(--color-border); }
+  section:last-of-type { border-bottom: 0; }
+  section h2 {
+    font-size: 30px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.02em;
+  }
+  section h3 { font-size: 20px; margin: 32px 0 12px; font-weight: 600; }
+  section .lede {
+    color: var(--color-text-muted);
+    font-size: 17px;
+    margin: 0 0 32px 0;
+    max-width: 720px;
+  }
+
+  /* Hero */
+  #hero {
+    padding: 80px 0 72px;
+    border-bottom: 1px solid var(--color-border);
+    background: radial-gradient(1200px 500px at 50% -100px, #eff6ff 0%, transparent 60%);
+  }
+  #hero h1 {
+    font-size: 48px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 16px 0;
+    max-width: 780px;
+    line-height: 1.1;
+  }
+  #hero .subtitle {
+    font-size: 19px;
+    color: var(--color-text-muted);
+    max-width: 640px;
+    margin: 0 0 32px 0;
+  }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 22px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+    font-family: var(--font-ui);
+  }
+  .btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+    box-shadow: var(--shadow-md);
+  }
+  .btn-primary:hover {
+    background: var(--color-primary-dark);
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+  .btn-secondary {
+    background: #fff;
+    color: var(--color-text);
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-secondary:hover { background: var(--color-bg-alt); text-decoration: none; }
+  .btn .icon { font-size: 18px; line-height: 1; }
+  .meta {
+    color: var(--color-text-muted);
+    font-size: 14px;
+    margin-top: 14px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .meta span::before { content: "•"; margin-right: 8px; color: var(--color-border-strong); }
+  .meta span:first-child::before { content: ""; margin-right: 0; }
+
+  /* Feature grid */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 8px;
+  }
+  .feature-card {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 22px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  }
+  .feature-card:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+  .feature-card .icon-box {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    border-radius: 10px;
+    font-size: 20px;
+    margin-bottom: 12px;
+  }
+  .feature-card h3 { margin: 0 0 6px 0; font-size: 17px; }
+  .feature-card p { margin: 0; color: var(--color-text-muted); font-size: 14.5px; }
+
+  /* Requirements */
+  .req-list {
+    background: var(--color-bg-alt);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px 24px;
+    margin-top: 12px;
+  }
+  .req-list ul { list-style: none; margin: 0; padding: 0; }
+  .req-list li {
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--color-border);
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .req-list li:last-child { border-bottom: 0; }
+  .req-list .check {
+    color: var(--color-success);
+    font-weight: 700;
+    flex-shrink: 0;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+
+  /* OS tabs */
+  .os-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--color-bg-alt);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    margin: 20px 0 24px 0;
+    width: fit-content;
+  }
+  .os-tab {
+    background: transparent;
+    border: 0;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    transition: background 0.15s, color 0.15s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .os-tab:hover { color: var(--color-text); }
+  .os-tab.active {
+    background: #fff;
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+    font-weight: 600;
+  }
+  .os-tab .os-icon { font-size: 16px; }
+  .os-panel { display: none; }
+  .os-panel.active { display: block; }
+  .os-panel .notice {
+    background: var(--color-accent-soft);
+    border: 1px solid #fcd34d;
+    color: #78350f;
+    padding: 16px 20px;
+    border-radius: var(--radius-md);
+    font-size: 15px;
+  }
+  .os-panel .notice strong { color: #713f12; }
+
+  /* Steps */
+  ol.steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 4px 0 20px 44px;
+  }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 30px; height: 30px;
+    background: var(--color-primary);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: var(--shadow-sm);
+  }
+  ol.steps li strong { color: var(--color-text); }
+  ol.steps li details {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: var(--color-bg-alt);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+  ol.steps li details summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--color-primary);
+    font-size: 14px;
+  }
+
+  /* Callout */
+  .callout {
+    background: var(--color-primary-soft);
+    border: 1px solid #bfdbfe;
+    border-left: 4px solid var(--color-primary);
+    padding: 16px 20px;
+    border-radius: var(--radius-sm);
+    margin: 24px 0;
+    font-size: 15px;
+  }
+  .callout.warning {
+    background: var(--color-accent-soft);
+    border-color: #fcd34d;
+    border-left-color: var(--color-accent);
+  }
+  .callout.success {
+    background: var(--color-success-soft);
+    border-color: #6ee7b7;
+    border-left-color: var(--color-success);
+  }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  /* Pills (output columns) */
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 8px;
+  }
+  .pills span {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+  }
+  .pills span.pill-note {
+    background: var(--color-accent-soft);
+    border-color: #fcd34d;
+    color: #78350f;
+  }
+  .footnote {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin: 8px 0 0;
+  }
+
+  /* Details / FAQ */
+  .qa details {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0;
+    margin: 10px 0;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .qa details[open] {
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-border-strong);
+  }
+  .qa details summary {
+    padding: 16px 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15.5px;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--color-text);
+  }
+  .qa details summary::-webkit-details-marker { display: none; }
+  .qa details summary::after {
+    content: "+";
+    color: var(--color-text-muted);
+    font-size: 22px;
+    font-weight: 300;
+    transition: transform 0.2s;
+    line-height: 1;
+  }
+  .qa details[open] summary::after { content: "−"; }
+  .qa details .body {
+    padding: 0 20px 20px 20px;
+    color: var(--color-text-muted);
+    font-size: 15px;
+  }
+  .qa details .body :first-child { margin-top: 0; }
+  .qa details .body strong { color: var(--color-text); }
+  .qa details .body ul { padding-left: 20px; }
+  .qa details .body li { margin: 4px 0; }
+  .qa details .body p { margin: 10px 0; }
+
+  /* Footer */
+  footer.site {
+    background: var(--color-bg-alt);
+    border-top: 1px solid var(--color-border);
+    padding: 40px 24px;
+    color: var(--color-text-muted);
+    font-size: 14px;
+  }
+  footer.site .inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  footer.site a { color: var(--color-primary); }
+
+  /* Responsive */
+  @media (max-width: 720px) {
+    header.site nav ul { display: none; }
+    #hero h1 { font-size: 36px; }
+    #hero .subtitle { font-size: 17px; }
+    section { padding: 48px 0; }
+    section h2 { font-size: 26px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    main { padding: 0 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="inner">
+    <div class="brand">
+      <div class="brand-logo">LG</div>
+      <span>Leads Gen</span>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#license">License</a></li>
+        <li><a href="#using">Using it</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </nav>
+    <a class="nav-cta" href="YOUR_GOOGLE_DRIVE_LINK">Download</a>
+  </div>
+</header>
+
+<main>
+
+  <section id="hero">
+    <h1>Turn Google Maps into a clean Excel of business leads.</h1>
+    <p class="subtitle">
+      Search any place + business type. Get name, address, phone, website, socials, and emails — deduplicated, ready to import.
+      Runs on your machine; nothing leaves except the requests to Google Maps itself.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="YOUR_GOOGLE_DRIVE_LINK">
+        <span class="icon">↓</span>
+        Download for macOS
+      </a>
+      <a class="btn btn-secondary" href="#install">See setup steps</a>
+    </div>
+    <div class="meta">
+      <span>macOS 12+ · Apple Silicon</span>
+      <span>~100 MB</span>
+      <span>No Python install needed</span>
+    </div>
+  </section>
+
+  <section id="overview">
+    <h2>What you get</h2>
+    <p class="lede">A single-file app. Open it, type a query, get an Excel.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon-box">◎</div>
+        <h3>Search any query</h3>
+        <p>“coffee shops in Brooklyn”, “dental clinics in Dublin” — anything you'd type into Google Maps.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon-box">✉</div>
+        <h3>Emails &amp; socials</h3>
+        <p>For every business with a website, we fetch it and extract contact emails plus Facebook, Instagram, LinkedIn, YouTube, TikTok, and more.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon-box">⇋</div>
+        <h3>Merge &amp; dedupe</h3>
+        <p>Append new results to an existing Excel — duplicates by website or address are removed automatically.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon-box">⚑</div>
+        <h3>Offline license</h3>
+        <p>Machine-bound activation. No servers, no phone-home. Works fully offline once activated.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon-box">⧉</div>
+        <h3>Clean links</h3>
+        <p>Every business gets a permanent Google Maps share-link that opens the exact pin.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon-box">⌗</div>
+        <h3>Free trial</h3>
+        <p>Try 3 results before you activate. No signup, no credit card.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="requirements">
+    <h2>Before you start</h2>
+    <p class="lede">One prerequisite: Google Chrome must be installed. Everything else is bundled.</p>
+    <div class="req-list">
+      <ul>
+        <li><span class="check">✓</span><div><strong>macOS 12 (Monterey) or newer</strong> on Apple Silicon (M1, M2, M3, M4). Intel Macs aren't currently supported.</div></li>
+        <li><span class="check">✓</span><div><strong>Google Chrome</strong> — the scraper drives Chrome under the hood. Free from <a href="https://www.google.com/chrome/" target="_blank" rel="noopener">google.com/chrome</a>.</div></li>
+        <li><span class="check">✓</span><div><strong>An internet connection</strong> — Google Maps + business websites are queried live.</div></li>
+        <li><span class="check">✓</span><div><strong>~200 MB free disk space</strong> for the app plus outputs.</div></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install &amp; first launch</h2>
+    <p class="lede">Pick your operating system. Windows and Linux builds are on the way — contact us if you need one now.</p>
+
+    <div class="os-tabs" role="tablist">
+      <button class="os-tab active" data-os="mac" role="tab" aria-selected="true">
+        <span class="os-icon"></span> macOS
+      </button>
+      <button class="os-tab" data-os="win" role="tab" aria-selected="false">
+        <span class="os-icon">⊞</span> Windows
+      </button>
+      <button class="os-tab" data-os="linux" role="tab" aria-selected="false">
+        <span class="os-icon">🐧</span> Linux
+      </button>
+    </div>
+
+    <div class="os-panel active" data-os="mac" role="tabpanel">
+      <ol class="steps">
+        <li>
+          <strong>Download the app</strong> from the button above and drop the <code>leads_gen</code> file into your <code>Applications</code> folder (or anywhere you like — <code>~/Downloads</code> works too).
+        </li>
+        <li>
+          <strong>First launch — dismiss the Gatekeeper warning.</strong> Because we don't code-sign the binary yet, macOS will refuse to open it on first double-click. Instead, <em>right-click</em> the file → <b>Open</b> → confirm the dialog. You only need to do this once.
+          <details>
+            <summary>Prefer the Terminal? Run this instead.</summary>
+            <pre><code>xattr -d com.apple.quarantine ~/Applications/leads_gen</code></pre>
+          </details>
+        </li>
+        <li>
+          <strong>The app opens in your browser</strong> at <code>http://localhost:8501</code> (a small Terminal window will also appear — that's the app server; keep it running).
+        </li>
+        <li>
+          <strong>You're in trial mode by default</strong> — 3 results per scrape. To unlock the full cap, follow <a href="#license">Activate your license</a> below.
+        </li>
+      </ol>
+    </div>
+
+    <div class="os-panel" data-os="win" role="tabpanel">
+      <div class="notice">
+        <strong>Windows build coming soon.</strong> If you need a Windows binary today, email <a href="mailto:shehry3894@gmail.com">shehry3894@gmail.com</a> with your Windows version (10, 11, ARM/x64) and we'll get one to you.
+      </div>
+    </div>
+
+    <div class="os-panel" data-os="linux" role="tabpanel">
+      <div class="notice">
+        <strong>Linux build coming soon.</strong> If you need a Linux binary today, email <a href="mailto:shehry3894@gmail.com">shehry3894@gmail.com</a> with your distro + architecture (Ubuntu 22.04 x64, Fedora ARM, etc.) and we'll get one to you.
+      </div>
+    </div>
+  </section>
+
+  <section id="license">
+    <h2>Activate your license</h2>
+    <p class="lede">Licenses are tied to your machine — one license per computer, works fully offline once installed.</p>
+
+    <ol class="steps">
+      <li>
+        <strong>Launch the app.</strong> In the left sidebar, look for the box labeled <em>Machine fingerprint</em>. It's a 64-character code that uniquely identifies this computer. Click the copy icon next to it.
+      </li>
+      <li>
+        <strong>Send us your fingerprint.</strong> Email <a href="mailto:shehry3894@gmail.com?subject=Request%20for%20Leads%20Gen%20License">shehry3894@gmail.com</a> with the subject line <em>Request for Leads Gen License</em> and include:
+        <ul>
+          <li>The fingerprint you copied</li>
+          <li>How many leads you want per run (your license cap)</li>
+          <li>Your desired license duration</li>
+        </ul>
+      </li>
+      <li>
+        <strong>You'll receive a license key</strong> — a long base64 string. Copy the whole thing.
+      </li>
+      <li>
+        <strong>Paste it into the app.</strong> The sidebar has a <em>License key</em> text field — paste the key there and click <b>Activate</b>.
+        <details>
+          <summary>Or install the key manually</summary>
+          <p>Create a file called <code>license.key</code> in the folder next to the app, containing just the license key on one line:</p>
+          <pre><code>echo "PASTE_YOUR_LICENSE_KEY_HERE" &gt; leads_gen/license.key</code></pre>
+        </details>
+      </li>
+      <li>
+        <strong>Restart the app.</strong> The sidebar should now show <b style="color: var(--color-success)">Licensed</b> in green with your expiry date and max-results cap.
+      </li>
+    </ol>
+
+    <div class="callout">
+      <strong>Trial mode</strong>
+      Without a license the app runs in trial mode — capped at 3 results per scrape. Perfect for kicking the tires. When you're ready, follow the steps above to unlock the full cap.
+    </div>
+
+    <div class="callout warning">
+      <strong>Machine-bound &amp; non-transferable</strong>
+      A license issued for machine A won't validate on machine B. If you switch computers (new Mac, reinstall macOS, etc.) you'll need a fresh license — send us the new fingerprint and we'll issue one.
+    </div>
+  </section>
+
+  <section id="using">
+    <h2>Using the app</h2>
+    <p class="lede">Two modes: start a new Excel, or append to one you already have.</p>
+
+    <h3>Start fresh</h3>
+    <ol class="steps">
+      <li><strong>Type your query</strong> — anything you'd type into Google Maps. E.g. <code>gyms in New York</code>, <code>dental clinics in Dublin</code>, <code>coffee shops in Brooklyn</code>.</li>
+      <li><strong>Set max results.</strong> Bounded by your license cap. In trial mode, capped at 3.</li>
+      <li><strong>Click <b>Run</b>.</strong> Progress and per-business logs stream to the sidebar in real time.</li>
+      <li><strong>Your Excel</strong> lands in a folder called <code>leads_gen_output/</code> right next to the app.</li>
+    </ol>
+
+    <h3>Append to an existing file</h3>
+    <p>Choose <b>Append to existing</b>, point at your prior Excel, and run a new query. New rows merge in and duplicates (by website, or name + address if no website) are removed automatically.</p>
+
+    <h3>What each row contains</h3>
+    <div class="pills">
+      <span>Name</span>
+      <span>Google Maps Link</span>
+      <span>Address</span>
+      <span>Phone</span>
+      <span>WhatsApp</span>
+      <span>Website</span>
+      <span>Rating</span>
+      <span class="pill-note">Review Count *</span>
+      <span>Facebook</span>
+      <span>Instagram</span>
+      <span>Twitter</span>
+      <span>LinkedIn</span>
+      <span>YouTube</span>
+      <span>Pinterest</span>
+      <span>TikTok</span>
+      <span>Threads</span>
+      <span>Snapchat</span>
+      <span>Emails</span>
+      <span>Scraped Time</span>
+    </div>
+    <p class="footnote">* Review Count is best-effort — Google Maps sometimes serves a "limited view" of the place panel that omits the count. Rating always comes through.</p>
+  </section>
+
+  <section id="troubleshooting">
+    <h2>Troubleshooting</h2>
+    <p class="lede">Common issues and how to fix them. Click any question to expand.</p>
+
+    <div class="qa">
+      <details>
+        <summary>The app won't open — macOS says it's "damaged" or "from an unidentified developer"</summary>
+        <div class="body">
+          <p>This is Gatekeeper — macOS's default block on unsigned binaries. Two fixes:</p>
+          <p><strong>Option 1 (easier):</strong> Right-click the <code>leads_gen</code> file in Finder → <b>Open</b> → confirm the dialog. This only needs doing once.</p>
+          <p><strong>Option 2 (Terminal):</strong> Clear the quarantine flag with this command (adjust the path to where the file lives):</p>
+          <pre><code>xattr -d com.apple.quarantine ~/Downloads/leads_gen</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>"License required" — but I already installed my license</summary>
+        <div class="body">
+          <p>The <code>license.key</code> file has to live <strong>right next to the app binary</strong>, not in your home folder or anywhere else. Check:</p>
+          <ul>
+            <li>File is named exactly <code>license.key</code> — not <code>license.key.txt</code> (macOS Finder sometimes hides the <code>.txt</code>).</li>
+            <li>File is inside a folder called <code>leads_gen/</code> next to the app.</li>
+            <li>File contains just the license key on a single line — no extra whitespace, no line wrapping.</li>
+          </ul>
+          <p>Easiest: paste the key into the sidebar's <em>License key</em> field and click <b>Activate</b> — the app writes the file for you.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>"License is not valid for this machine"</summary>
+        <div class="body">
+          <p>Licenses are locked to the machine that produced the fingerprint. This message means the license was issued for a different computer.</p>
+          <p>Common causes:</p>
+          <ul>
+            <li>You copied the license from another Mac.</li>
+            <li>You reinstalled macOS or restored from a backup that changed the machine ID.</li>
+            <li>You're running the app inside a VM whose hardware ID changes between boots.</li>
+          </ul>
+          <p><strong>Fix:</strong> grab the new fingerprint from the sidebar and email us — we'll issue a fresh license.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>I only got 3 results even though I asked for more</summary>
+        <div class="body">
+          <p>You're in trial mode. Either:</p>
+          <ul>
+            <li>No license is installed (check the sidebar — does it say <em>Trial</em> or <em>Licensed</em>?), or</li>
+            <li>The trial-mode button in the sidebar was clicked, which forces the 3-result cap for the current session.</li>
+          </ul>
+          <p>Activate a license (see above) or restart the app to clear the trial flag.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>"Chrome not found" or the browser fails to start</summary>
+        <div class="body">
+          <p>The scraper drives Google Chrome. It has to be installed at the standard location. Fix:</p>
+          <ul>
+            <li>Install (or reinstall) Chrome from <a href="https://www.google.com/chrome/" target="_blank" rel="noopener">google.com/chrome</a>.</li>
+            <li>If Chrome is installed but the app can't find it, quit the app, launch Chrome once manually, close it, then relaunch the app.</li>
+            <li>If you use a Chrome-based alternative (Brave, Edge, Arc), install regular Chrome alongside it — the scraper expects Chrome specifically.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary>My IP is getting blocked — or results come back empty</summary>
+        <div class="body">
+          <p>Google Maps rate-limits aggressive scraping. If runs start returning empty results, showing a captcha, or the "limited view" banner:</p>
+          <ul>
+            <li><strong>Wait 30–60 minutes</strong> before retrying. Rate limits reset quickly.</li>
+            <li><strong>Use a residential IP</strong> — home or office Wi-Fi. Datacenter and VPN IPs (especially popular ones) get flagged fast.</li>
+            <li><strong>Break large runs into smaller batches</strong> — 30–50 at a time is safer than 500 in one go.</li>
+            <li><strong>Space out identical queries</strong> — repeatedly running the same search from the same IP is the fastest way to get flagged.</li>
+            <li><strong>Vary queries</strong> — different cities or business types spread the load naturally.</li>
+          </ul>
+          <p>If your IP stays blocked for hours, switch networks (hotspot from a phone works) to confirm it's IP-based, then wait it out on the original network.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>"Cannot save Excel" — file is locked or in use</summary>
+        <div class="body">
+          <p>The output file is open in Excel, Numbers, or LibreOffice. Close the file in the other program, then click <b>Run</b> again. You can spot a locked file by a hidden file called <code>.~lock.filename.xlsx#</code> next to it.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>The Review Count column is empty</summary>
+        <div class="body">
+          <p>Google Maps sometimes serves a "limited view" of the place panel to headless sessions and doesn't include the review count in it. Rating still comes through, but the count is best-effort. This is a Google-side behavior — nothing on your end is broken.</p>
+          <p>If review counts matter to you and you're seeing them consistently blank, let us know and we can look at alternate strategies (they cost more time per business but can be more reliable).</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>The app is running but the browser tab never opens</summary>
+        <div class="body">
+          <p>Sometimes macOS blocks the auto-open. Open your browser manually and go to <a href="http://localhost:8501" target="_blank" rel="noopener">http://localhost:8501</a>. If that also fails, another program is using port 8501 — quit any other Streamlit apps and try again.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Where are the log files if I need to send them to support?</summary>
+        <div class="body">
+          <p>Every session writes a timestamped log to a <code>logs/</code> folder right next to the app. Files look like <code>app_2026-07-22_14-01-01.log</code>. If you email support about an issue, attaching the log from the failing run helps us diagnose it fast.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section id="faq">
+    <h2>FAQ</h2>
+
+    <div class="qa">
+      <details>
+        <summary>Where does my scraped data end up?</summary>
+        <div class="body">
+          <p>An Excel file (<code>.xlsx</code>) in a folder called <code>leads_gen_output/</code> right next to the app. File name = your query with underscores. Example: query <em>"gyms in New York"</em> → <code>leads_gen_output/gyms_in_New_York.xlsx</code>.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Can I use my license on multiple computers?</summary>
+        <div class="body">
+          <p>No — one license per machine. Each computer has a unique fingerprint. If you need multi-machine coverage (multiple laptops, an office setup, etc.), reach out and we'll price a multi-seat license.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>What happens if I get a new computer?</summary>
+        <div class="body">
+          <p>Install the app on the new machine, grab the new fingerprint from the sidebar, and email us. We'll issue a fresh license — no charge if you're within your current license term.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Does the app phone home or send data anywhere?</summary>
+        <div class="body">
+          <p>No. Licensing is fully offline — the license key contains everything needed to validate locally. The scraper does hit two things: Google Maps (via Chrome, exactly like a normal browser session) and the target businesses' own websites (to extract emails and social links). Nothing is sent to us.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Can I scrape the same query twice and merge the results?</summary>
+        <div class="body">
+          <p>Yes — that's what the <b>Append to existing</b> mode is for. Point at your existing Excel, run any query, and new rows are merged in. Duplicates (by website URL, or by name + address if the row has no website) are removed automatically.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>How accurate are the emails?</summary>
+        <div class="body">
+          <p>Emails are pulled from the business's own website when it exists — same as opening the site and reading the "Contact" page. Reliable when a site links a real email; not present when businesses only offer a contact form. Obvious placeholders like <code>you@example.com</code> and email-tracker beacons are filtered out.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>What about GDPR / privacy?</summary>
+        <div class="body">
+          <p>You're scraping publicly listed business contact info — the same data you'd get by clicking through Google Maps and each website manually. That said, <strong>how you use the data</strong> is on you: cold outreach to individuals in the EU, UK, and several US states has consent and disclosure requirements. Consult local law before mass-emailing.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>How do I update to a new version?</summary>
+        <div class="body">
+          <p>Download the new app file and replace the old one. Your <code>license.key</code> and <code>leads_gen_output/</code> folder are preserved as long as they sit next to the new binary. Your license keeps working — same machine, same fingerprint.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Can I run it on a schedule or from the command line?</summary>
+        <div class="body">
+          <p>The shipped app is GUI-only (Streamlit). A CLI version exists but isn't currently bundled with the binary. If you need scripted / scheduled runs, email us — we'll look at bundling the CLI.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div class="inner">
+    <div>
+      Leads Gen — Google Maps lead scraper. Runs entirely on your machine.
+    </div>
+    <div>
+      Need help? <a href="mailto:shehry3894@gmail.com">shehry3894@gmail.com</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // OS tab switcher
+  (function () {
+    const tabs = document.querySelectorAll('.os-tab');
+    const panels = document.querySelectorAll('.os-panel');
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        const os = tab.getAttribute('data-os');
+        tabs.forEach(function (t) {
+          const isActive = t === tab;
+          t.classList.toggle('active', isActive);
+          t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        panels.forEach(function (p) {
+          p.classList.toggle('active', p.getAttribute('data-os') === os);
+        });
+      });
+    });
+  })();
+
+  // Copy-to-clipboard buttons on every <pre>
+  (function () {
+    document.querySelectorAll('pre').forEach(function (pre) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.type = 'button';
+      btn.textContent = 'Copy';
+      btn.addEventListener('click', function () {
+        const code = pre.querySelector('code');
+        const text = code ? code.innerText : pre.innerText;
+        navigator.clipboard.writeText(text).then(function () {
+          btn.textContent = 'Copied';
+          btn.classList.add('copied');
+          setTimeout(function () {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+          }, 1600);
+        }).catch(function () {
+          btn.textContent = 'Failed';
+          setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+        });
+      });
+      pre.appendChild(btn);
+    });
+  })();
+</script>
+
+</body>
+</html>
