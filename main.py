@@ -10,7 +10,6 @@ from leads_gen.core.demo_data import get_demo_leads
 from leads_gen.licensing.license_manager import LicenseManager
 from leads_gen.scraper.driver import start_driver
 from leads_gen.scraper.scrape import scrape_business_data
-from leads_gen.scraper.scroll import scroll_results
 from leads_gen.scraper.search import search_maps
 from leads_gen.utils.logging_utils import configure_file_logging
 from leads_gen.utils.paths import get_output_dir
@@ -193,7 +192,8 @@ def main():
         try:
             logger.info(f"Searching for: {query}")
             search_maps(driver, query)
-            scroll_results(driver, max_results)
+            # scrape_business_data now interleaves scroll + scrape (was two
+            # separate stages). Scrolls in-loop as it runs out of cards.
             data = scrape_business_data(driver, max_results)
         except Exception:
             logger.exception("Scraping failed")

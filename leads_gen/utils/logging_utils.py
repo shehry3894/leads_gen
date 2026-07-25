@@ -38,24 +38,16 @@ def configure_file_logging(base_dir: Path | None = None, log_folder_name: str = 
     logger.setLevel(logging.INFO)
     logger.propagate = False
 
-    try:
-        log_file_path_resolved = log_file_path.resolve()
-    except OSError:
-        # Path.resolve() can raise on missing parents on some OSes; treat as new.
-        log_file_path_resolved = log_file_path
-
-    # Avoid adding duplicate handlers if called multiple times.
-    existing_paths = set()
-    for h in logger.handlers:
-        base = getattr(h, "baseFilename", None)
-        if base:
-            try:
-                existing_paths.add(Path(base).resolve())
-            except OSError:
-                existing_paths.add(Path(base))
-
-    if log_file_path_resolved in existing_paths:
-        return log_file_path
+    # If a FileHandler is already attached to this logger, reuse its file
+    # rather than opening a second timestamped log for the same process.
+    # Streamlit re-runs the script per browser session; without this guard
+    # each session would attach its own FileHandler AND every subsequent log
+    # message would write to all of them, producing N near-duplicate log
+    # files per app run.
+    for existing_handler in logger.handlers:
+        existing_path = getattr(existing_handler, "baseFilename", None)
+        if existing_path:
+            return Path(existing_path)
 
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
 

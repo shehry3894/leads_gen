@@ -6,7 +6,7 @@ from datetime import datetime
 import requests
 from selenium.webdriver.common.by import By
 
-from leads_gen.config.settings import WAIT_CONFIG
+from leads_gen.config.settings import TRIAL, WAIT_CONFIG
 from leads_gen.utils.wait_utils import SmartWait
 
 logger = logging.getLogger("leads_gen")
@@ -38,6 +38,44 @@ def generate_whatsapp_link(phone_number):
     return "N/A"
 
 
+# --- Interleaved scrape+scroll loop constants ---
+# Instead of "scroll everything, then scrape everything" (which loses late results
+# if Google throttles halfway), we interleave: scrape a card, scroll for more
+# when the DOM runs out, keep going until data starts repeating or the feed is
+# genuinely exhausted.
+_INTERLEAVED_MAX_DUPLICATE_STREAK = 5
+_INTERLEAVED_MAX_SCROLL_STALL_STREAK = 3
+# Slightly longer than WAIT_CONFIG.base_wait: Google Maps often takes 1.5-3s to
+# render the next batch of cards after a scroll, especially with a visible
+# browser on a home connection.
+_INTERLEAVED_SCROLL_WAIT_SECONDS = 1.8
+
+
+def _scroll_feed_to_bottom(driver) -> None:
+    """Scroll the Google Maps results feed to trigger lazy-load of more cards."""
+    driver.execute_script("""
+        const feed = document.querySelector('div[role="feed"]');
+        if (feed) feed.scrollTop = feed.scrollHeight;
+        """)
+
+
+def _is_end_of_list_marker_visible(driver) -> bool:
+    """Detect Google Maps' 'You've reached the end of the list' message.
+
+    When present, this is Google's authoritative signal that the feed is
+    exhausted — we can stop immediately without waiting through the stall
+    detector. The exact copy/class churns; we match on visible text.
+    """
+    try:
+        markers = driver.find_elements(
+            By.XPATH,
+            '//p[contains(., "You\'ve reached the end") ' "or contains(., 'end of the list')]",
+        )
+        return any(m.is_displayed() for m in markers)
+    except Exception:
+        return False
+
+
 _MAPS_CID_HEX_RE = re.compile(r"!1s0x[0-9a-f]+:0x([0-9a-f]+)", re.IGNORECASE)
 
 # Parenthesized number like "(1,234)" — the format Google Maps uses to display
@@ -45,8 +83,11 @@ _MAPS_CID_HEX_RE = re.compile(r"!1s0x[0-9a-f]+:0x([0-9a-f]+)", re.IGNORECASE)
 _PARENTHESIZED_NUMBER_RE = re.compile(r"\((\d[\d,]*)\)")
 
 
-_REVIEW_COUNT_POLL_SECONDS = 5.0
-_REVIEW_COUNT_POLL_INTERVAL = 0.4
+# Review count is best-effort — Google Maps often serves a "limited view" that
+# omits it entirely. Keep the poll short (1s max) so businesses without a
+# visible count don't cost us 5s each; the rating still comes through fine.
+_REVIEW_COUNT_POLL_SECONDS = 1.0
+_REVIEW_COUNT_POLL_INTERVAL = 0.25
 
 # Read the parent of .F7nice, not F7nice itself: on many place panels the count
 # renders as a sibling span (or a link a few nodes over), not inside F7nice.
@@ -310,17 +351,63 @@ def scrape_business_data(driver, max_results):
         logger.error("No business results found")
         return data
 
-    logger.info(f"Starting to scrape {len(results)} business results.")
+    # TRIAL cap moved here from the (now-deleted) scroll_results stage; the
+    # interleaved loop compares against len(data), so a max of 3 means "collect
+    # 3 records", not "look at 3 cards".
+    if TRIAL:
+        max_results = 3
+        logger.info(f"TRIAL mode: capping max_results at {max_results}")
+
+    logger.info(
+        "Starting interleaved scrape (initial cards visible: %s, max_results=%s)",
+        len(results),
+        max_results if max_results is not None else "unlimited",
+    )
 
     scraped_links = set()  # Track which businesses we've already scraped to avoid duplicates
+    i = 0
+    duplicate_streak = 0
+    scroll_stall_streak = 0
 
-    for i in range(len(results)):
-        if max_results is not None and i >= max_results:
+    while True:
+        # --- Global exit conditions ---
+        if max_results is not None and len(data) >= max_results:
             logger.info(f"Reached the max results limit: {max_results}")
             break
-        try:
-            # Re-fetch results to avoid stale element references
+        if duplicate_streak >= _INTERLEAVED_MAX_DUPLICATE_STREAK:
+            logger.info(
+                "Data has started repeating (%s duplicates in a row). Stopping.",
+                duplicate_streak,
+            )
+            break
+
+        # --- Ensure a card exists at position i (scroll if needed) ---
+        results = driver.find_elements(By.XPATH, '//div[contains(@class, "Nv2PK")]')
+        while i >= len(results):
+            if _is_end_of_list_marker_visible(driver):
+                logger.info("Google Maps 'end of list' marker detected. Stopping.")
+                return data
+            old_len = len(results)
+            _scroll_feed_to_bottom(driver)
+            time.sleep(_INTERLEAVED_SCROLL_WAIT_SECONDS)
             results = driver.find_elements(By.XPATH, '//div[contains(@class, "Nv2PK")]')
+            if len(results) == old_len:
+                scroll_stall_streak += 1
+                logger.info(
+                    "Scroll produced no new cards (%s/%s)",
+                    scroll_stall_streak,
+                    _INTERLEAVED_MAX_SCROLL_STALL_STREAK,
+                )
+                if scroll_stall_streak >= _INTERLEAVED_MAX_SCROLL_STALL_STREAK:
+                    logger.info("Feed exhausted after multiple scroll stalls. Stopping.")
+                    return data
+            else:
+                scroll_stall_streak = 0
+                logger.info("Cards loaded via scroll: %s -> %s", old_len, len(results))
+
+        accepted_before = len(data)
+        try:
+            # (results was refreshed by the scroll-ensure block above)
             if i >= len(results):
                 logger.warning(f"Result {i} no longer available")
                 continue
@@ -620,7 +707,15 @@ def scrape_business_data(driver, max_results):
             logger.info(f"  └─ Rating: {rating} ({review_count} reviews)")
         except Exception as e:
             logger.error(f"{i + 1}. Failed to scrape business due to: {str(e)}")
-            continue
+        finally:
+            # Duplicate streak = "iterations that didn't add a new record".
+            # Covers both explicit duplicates (`continue` inside body) and
+            # errors — 5 in a row of either means we're not making progress.
+            if len(data) > accepted_before:
+                duplicate_streak = 0
+            else:
+                duplicate_streak += 1
+            i += 1
 
     logger.info(f"Scraping completed. Total businesses scraped: {len(data)}")
     return data

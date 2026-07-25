@@ -70,8 +70,8 @@ Output lands in `output/{query_with_underscores}.xlsx`. If the file already exis
 ## Streamlit UI
 
 Two modes:
-- **Start fresh** — new query, new Excel file
-- **Append to existing** — upload/point at an existing `.xlsx` and merge new rows into it
+- **Start fresh** — new query, new Excel file. If a file with the same auto-generated name already exists, the UI opens a blocking modal asking whether to **Discard & scrape fresh**, **Append to existing**, or **Cancel**.
+- **Append to existing** — upload/point at an existing `.xlsx` and merge new rows into it.
 
 UI output goes to `leads_gen_output/`. License status, machine fingerprint, and a Trial-mode button are all in the sidebar.
 
@@ -105,7 +105,7 @@ app.py                    # Streamlit entry point
 main.py                   # CLI entry point
 leads_gen/
   config/settings.py      # TRIAL, TESTING, HEADLESS_MODE, WAIT_CONFIG
-  scraper/                # driver, search, scroll, scrape, zooming
+  scraper/                # driver, search, scrape (interleaved scroll+scrape), zooming
   core/                   # data_normalization, demo_data
   licensing/              # fingerprint, license_codec, license_manager, license_model
   utils/                  # paths, logging_utils, wait_utils (SmartWait)

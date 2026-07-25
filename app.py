@@ -58,13 +58,12 @@ from io import BytesIO
 import pandas as pd
 import streamlit as st
 
-from leads_gen.core.data_normalization import process_scraped_data
+from leads_gen.core.data_normalization import deduplicate_dataframe, process_scraped_data
 from leads_gen.core.demo_data import get_demo_leads
 from leads_gen.licensing.fingerprint import generate_machine_fingerprint
 from leads_gen.licensing.license_manager import LicenseManager
 from leads_gen.scraper.driver import start_driver
 from leads_gen.scraper.scrape import scrape_business_data
-from leads_gen.scraper.scroll import scroll_results
 from leads_gen.scraper.search import search_maps
 from leads_gen.utils.logging_utils import configure_file_logging
 from leads_gen.utils.paths import get_ui_output_dir
@@ -98,6 +97,16 @@ if "workflow_locked" not in st.session_state:
 
 if "trial_mode" not in st.session_state:
     st.session_state.trial_mode = False
+
+# "Start Scraping" click flow. When the target file exists we need to prompt
+# the user before scraping. The button callback flips this to True; the main
+# flow then either shows the modal or proceeds directly.
+if "pending_scrape_confirmed" not in st.session_state:
+    st.session_state.pending_scrape_confirmed = False
+
+# User's choice from the file-exists modal: "append" | "discard" | None.
+if "existing_file_choice" not in st.session_state:
+    st.session_state.existing_file_choice = None
 
 if "scraping_complete" not in st.session_state:
     st.session_state.scraping_complete = False  # Track if scraping finished successfully
@@ -140,6 +149,14 @@ def reset_app_state():
     if st.session_state.trial_mode:
         cleared_items.append("trial mode")
         st.session_state.trial_mode = False
+
+    if st.session_state.pending_scrape_confirmed:
+        cleared_items.append("pending scrape confirmation")
+        st.session_state.pending_scrape_confirmed = False
+
+    if st.session_state.existing_file_choice is not None:
+        cleared_items.append(f"existing-file choice ({st.session_state.existing_file_choice})")
+        st.session_state.existing_file_choice = None
 
     if st.session_state.scraping_complete:
         cleared_items.append("scraping complete flag")
@@ -290,16 +307,15 @@ def perform_scraping(query, max_results, headless=True, progress_callback=None):
         search_maps(driver, query)
 
         if progress_callback:
-            progress_callback(0.4, "Scrolling through results...")
+            progress_callback(0.5, "Scraping business data (scroll + scrape interleaved)...")
         logger.info(
-            "Starting scroll through results (max_results=%s)",
+            "Starting interleaved scrape+scroll (max_results=%s)",
             max_results if max_results is not None else "all",
         )
-        scroll_results(driver, max_results)
-
-        if progress_callback:
-            progress_callback(0.7, "Scraping business data...")
-        logger.info("Starting scrape of business data")
+        # scrape_business_data now interleaves scroll + scrape internally:
+        # scrolls for more cards as it runs out and stops when data starts
+        # repeating (5 consecutive duplicates), the feed exhausts, or the
+        # end-of-list marker appears.
         data = scrape_business_data(driver, max_results) or []
         logger.info("Scraping complete. Rows scraped: %s", len(data))
 
@@ -379,8 +395,68 @@ def create_excel_with_links(df):
 
 
 def start_scraping_callback():
-    st.session_state.is_scraping = True
+    # Only flag the *intent* to scrape here. The main flow may still need to
+    # show the file-exists modal before actually starting; `is_scraping` gets
+    # flipped True only when the scrape is truly about to run.
+    st.session_state.pending_scrape_confirmed = True
     st.session_state.workflow_locked = True
+
+
+@st.dialog("File already exists")
+def _confirm_existing_file_dialog(file_path: str, existing_rows: int) -> None:
+    """Blocking modal — user must pick before the scrape can start.
+
+    Options:
+      - Discard & scrape fresh: overwrite the file, losing existing rows
+      - Append to existing: merge new results into the file (dedup by
+        website / name+address afterwards)
+      - Cancel: back out of the run entirely
+    """
+    st.markdown(
+        f"A file for this query already exists:\n\n"
+        f"📄 `{file_path}`\n\n"
+        f"It contains **{existing_rows} rows** from a previous scrape."
+    )
+    st.markdown("**How would you like to proceed?**")
+
+    col_discard, col_append = st.columns(2)
+    with col_discard:
+        if st.button(
+            "🗑️  Discard & scrape fresh",
+            key="dlg_existing_discard",
+            use_container_width=True,
+            help=(f"Overwrite the file — the {existing_rows} existing " "rows will be lost."),
+        ):
+            st.session_state.existing_file_choice = "discard"
+            logger.info("User chose DISCARD for existing file: %s", file_path)
+            st.rerun()
+    with col_append:
+        if st.button(
+            "➕  Append to existing",
+            key="dlg_existing_append",
+            type="primary",
+            use_container_width=True,
+            help=(
+                "Merge new results into the existing file, "
+                "deduplicated by website / name+address."
+            ),
+        ):
+            st.session_state.existing_file_choice = "append"
+            logger.info("User chose APPEND for existing file: %s", file_path)
+            st.rerun()
+
+    st.markdown("")
+    if st.button(
+        "Cancel",
+        key="dlg_existing_cancel",
+        use_container_width=True,
+    ):
+        # Back out entirely — clear the "start scraping" intent so we don't
+        # loop back into the modal on the next rerun.
+        st.session_state.pending_scrape_confirmed = False
+        st.session_state.workflow_locked = False
+        logger.info("User CANCELLED at file-exists prompt: %s", file_path)
+        st.rerun()
 
 
 def open_folder(path):
@@ -784,8 +860,12 @@ def main():
             file_path,
         )
 
-        # Disable start button when scraping is in progress OR when scraping is complete
-        start_button_disabled = st.session_state.is_scraping or st.session_state.scraping_complete
+        # Disable start button when scraping is in progress OR complete OR pending confirm
+        start_button_disabled = (
+            st.session_state.is_scraping
+            or st.session_state.scraping_complete
+            or st.session_state.pending_scrape_confirmed
+        )
 
         # Show info message if scraping is complete
         if st.session_state.scraping_complete:
@@ -795,22 +875,48 @@ def main():
         if st.session_state.is_scraping and not st.session_state.scraping_complete:
             st.warning("🔄 Scraping in progress... Please wait.")
 
-        start_clicked = st.button(
+        st.button(
             "Start Scraping",
             disabled=start_button_disabled,
             on_click=start_scraping_callback,
             use_container_width=True,
         )
 
-        if start_clicked and query:
+        # --- Start Scraping flow ---
+        # The callback flips `pending_scrape_confirmed` to True. If the target
+        # file already exists and no choice has been made yet, show the modal
+        # and stop the script — the modal buttons write to `existing_file_choice`
+        # and rerun. Otherwise (no existing file or choice already made),
+        # proceed to actually scrape.
+        if st.session_state.pending_scrape_confirmed and query:
+            existing_file_exists = os.path.exists(file_path)
+            user_has_chosen = st.session_state.existing_file_choice is not None
+
+            if existing_file_exists and not user_has_chosen:
+                try:
+                    existing_row_count = len(pd.read_excel(file_path))
+                except Exception:
+                    logger.debug(
+                        "Could not read %s for row-count preview", file_path, exc_info=True
+                    )
+                    existing_row_count = 0
+                _confirm_existing_file_dialog(file_path, existing_row_count)
+                st.stop()  # Wait for the user to pick
+
+            # Clear the pending flag and actually start the scrape.
+            st.session_state.pending_scrape_confirmed = False
+            st.session_state.is_scraping = True
+            should_append_to_existing = st.session_state.existing_file_choice == "append"
+
             log_once(
-                f"start_new:{query}",
+                f"start_new:{query}:{st.session_state.existing_file_choice or 'no-existing'}",
                 "info",
-                "Start Scraping button clicked (new mode) for query=%r",
+                "Start Scraping (new mode): query=%r, existing_file_choice=%s",
                 query,
+                st.session_state.existing_file_choice or "no-existing",
             )
             st.session_state.scraped_df = None
-            st.session_state.scraping_complete = False  # Reset completion flag
+            st.session_state.scraping_complete = False
 
             progress_bar = st.progress(0)
             status_text = st.empty()
@@ -837,18 +943,47 @@ def main():
 
             # Save results to Excel
             if len(data) > 0:
-                save_excel(st.session_state.scraped_df, file_path)
-                logger.info(
-                    "Excel file saved: %s (rows=%s)",
-                    file_path,
-                    len(st.session_state.scraped_df.index),
-                )
-                st.success("✅ Scraping completed successfully!")
+                df_to_save = st.session_state.scraped_df
+                if should_append_to_existing and existing_file_exists:
+                    try:
+                        existing_df = pd.read_excel(file_path)
+                        merged = pd.concat([existing_df, df_to_save], ignore_index=True)
+                        df_to_save = deduplicate_dataframe(merged)
+                        logger.info(
+                            "Merged with existing file: %s existing + %s new -> %s after dedupe",
+                            len(existing_df),
+                            len(st.session_state.scraped_df),
+                            len(df_to_save),
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Append-merge failed for %s (%s); saving fresh instead.",
+                            file_path,
+                            e,
+                        )
 
-                file_name = Path(file_path).name
-                st.code(f"File created: {file_name}\nLocation: {file_path}", language="text")
+                save_excel(df_to_save, file_path)
+                logger.info("Excel file saved: %s (rows=%s)", file_path, len(df_to_save))
+                st.success(
+                    "✅ Scraping completed successfully!"
+                    + (
+                        f" (Merged with {existing_row_count if existing_file_exists else 0} "
+                        "existing rows.)"
+                        if should_append_to_existing and existing_file_exists
+                        else ""
+                    )
+                )
+
+                file_name_display = Path(file_path).name
+                st.code(
+                    f"File created: {file_name_display}\nLocation: {file_path}",
+                    language="text",
+                )
             else:
                 st.warning("No data was collected.")
+
+            # Clear the file-exists choice so the next run prompts again.
+            st.session_state.existing_file_choice = None
 
     elif scrape_option == "append":
         st.subheader("Append new leads to an existing file")
@@ -1055,8 +1190,6 @@ def main():
 
                     # Combine existing and new data, then deduplicate
                     data = pd.concat([df_existing, new_data], ignore_index=True)
-                    from leads_gen.core.data_normalization import deduplicate_dataframe
-
                     data = deduplicate_dataframe(data)
                     logger.info(
                         "Append mode: existing rows=%s, new rows=%s, combined rows=%s",

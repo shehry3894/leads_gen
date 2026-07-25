@@ -12,8 +12,8 @@ leads_gen/
 ├── scraper/                 Selenium-based Google Maps scraping
 │   ├── driver.py            start_driver(), DriverInitError, _diagnose_webdriver_error()
 │   ├── search.py            search_maps() — navigate, dismiss cookies, run query
-│   ├── scroll.py            scroll_results() — scroll the results feed (TRIAL cap here)
-│   ├── scrape.py            scrape_business_data() + extract_social_and_email_links()
+│   ├── scrape.py            scrape_business_data() — interleaved scroll+scrape
+│   │                        + extract_social_and_email_links()
 │   └── zooming.py           zoom/checkbox helpers used by search.py
 ├── core/
 │   ├── data_normalization.py  process_scraped_data(), deduplicate_dataframe(), CANONICAL_COLUMNS
@@ -52,11 +52,14 @@ scraper.driver.start_driver          Build Chrome WebDriver (headless controlled
 scraper.search.search_maps           Navigate to Google Maps, dismiss cookies, run query
         │
         ▼
-scraper.scroll.scroll_results        Scroll results feed until max hit, plateau, or feed missing
-        │                            ⚠ TRIAL=True caps this at 3 regardless of caller.
-        ▼
-scraper.scrape.scrape_business_data  For each card: click, wait, extract fields, fetch site
-        │                            for socials/emails via requests.
+scraper.scrape.scrape_business_data  Interleaved scroll+scrape loop. Per iteration:
+        │                              - scroll the feed if no card at position i
+        │                              - click card, wait, extract fields, fetch site
+        │                                for socials/emails via requests
+        │                            Stops on: max_results reached | 5 consecutive
+        │                            duplicates | 3 consecutive scroll stalls |
+        │                            "end of list" marker visible.
+        │                            ⚠ TRIAL=True caps max_results at 3.
         ▼
 core.data_normalization              Normalize to CANONICAL_COLUMNS, dedupe by website (or name+addr).
         │

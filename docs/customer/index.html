@@ -695,6 +695,14 @@
       <li><strong>Set max results.</strong> Bounded by your license cap. In trial mode, capped at 3.</li>
       <li><strong>Click <b>Run</b>.</strong> Progress and per-business logs stream to the sidebar in real time.</li>
       <li>
+        <strong>If you've run this query before, a prompt appears.</strong> The app auto-names the output after your query (e.g. <code>gyms_in_New_York.xlsx</code>). If a file with that name already exists in <code>leads_gen_output/</code>, a dialog opens with three options:
+        <ul>
+          <li><b>Discard &amp; scrape fresh</b> — overwrite the existing file with only the new results.</li>
+          <li><b>Append to existing</b> — merge the new results into the existing file; duplicates (by website URL, or name + address if no website) are removed automatically.</li>
+          <li><b>Cancel</b> — do nothing, keep the existing file untouched.</li>
+        </ul>
+      </li>
+      <li>
         <strong>A second Chrome window will open</strong> — that's the app driving Google Maps to gather results.
         <div class="callout warning" style="margin-top: 10px;">
           <strong>Don't touch the Chrome window while it's working.</strong>
@@ -888,7 +896,12 @@
       <details>
         <summary>Can I scrape the same query twice and merge the results?</summary>
         <div class="body">
-          <p>Yes — that's what the <b>Append to existing</b> mode is for. Point at your existing Excel, run any query, and new rows are merged in. Duplicates (by website URL, or by name + address if the row has no website) are removed automatically.</p>
+          <p>Yes, two ways:</p>
+          <ul>
+            <li><strong>Start fresh</strong> with the same query — the app notices the existing file and pops a dialog asking whether to <b>Discard &amp; scrape fresh</b>, <b>Append to existing</b>, or <b>Cancel</b>. Pick <em>Append</em>.</li>
+            <li><strong>Append to existing</strong> mode — point at any prior Excel and run any query. New rows are merged in.</li>
+          </ul>
+          <p>Either path deduplicates by website URL, or by name + address when a row has no website.</p>
         </div>
       </details>
 
