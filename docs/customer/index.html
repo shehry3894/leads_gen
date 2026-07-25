@@ -516,7 +516,7 @@
         <li><a href="#faq">FAQ</a></li>
       </ul>
     </nav>
-    <a class="nav-cta" href="YOUR_GOOGLE_DRIVE_LINK">Download</a>
+    <a class="nav-cta" href="YOUR_GOOGLE_DRIVE_LINK" target="_blank" rel="noopener">Download</a>
   </div>
 </header>
 
@@ -529,15 +529,15 @@
       Runs on your machine; nothing leaves except the requests to Google Maps itself.
     </p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="YOUR_GOOGLE_DRIVE_LINK">
+      <a class="btn btn-primary" href="YOUR_GOOGLE_DRIVE_LINK" target="_blank" rel="noopener">
         <span class="icon">↓</span>
-        Download for macOS
+        Download the app
       </a>
       <a class="btn btn-secondary" href="#install">See setup steps</a>
     </div>
     <div class="meta">
-      <span>macOS 12+ · Apple Silicon</span>
-      <span>~100 MB</span>
+      <span>macOS, Windows &amp; Linux builds</span>
+      <span>~100 MB each</span>
       <span>No Python install needed</span>
     </div>
   </section>
@@ -584,7 +584,7 @@
     <p class="lede">One prerequisite: Google Chrome must be installed. Everything else is bundled.</p>
     <div class="req-list">
       <ul>
-        <li><span class="check">✓</span><div><strong>macOS 12 (Monterey) or newer</strong> on Apple Silicon (M1, M2, M3, M4). Intel Macs aren't currently supported.</div></li>
+        <li><span class="check">✓</span><div><strong>One of:</strong> macOS 12 (Monterey) or newer on Apple Silicon (M1–M4), Windows 10/11 (64-bit), or a recent 64-bit Linux (Ubuntu 20.04+, Fedora 36+, or similar). Grab the matching build from the download folder.</div></li>
         <li><span class="check">✓</span><div><strong>Google Chrome</strong> — the scraper drives Chrome under the hood. Free from <a href="https://www.google.com/chrome/" target="_blank" rel="noopener">google.com/chrome</a>.</div></li>
         <li><span class="check">✓</span><div><strong>An internet connection</strong> — Google Maps + business websites are queried live.</div></li>
         <li><span class="check">✓</span><div><strong>~200 MB free disk space</strong> for the app plus outputs.</div></li>
@@ -594,7 +594,7 @@
 
   <section id="install">
     <h2>Install &amp; first launch</h2>
-    <p class="lede">Pick your operating system. Windows and Linux builds are on the way — contact us if you need one now.</p>
+    <p class="lede">All builds — macOS, Windows, Linux — live in the same <a href="YOUR_GOOGLE_DRIVE_LINK" target="_blank" rel="noopener">Google Drive folder</a>. Open it, grab the file for your OS, then follow the steps below.</p>
 
     <div class="os-tabs" role="tablist">
       <button class="os-tab active" data-os="mac" role="tab" aria-selected="true">
@@ -611,7 +611,7 @@
     <div class="os-panel active" data-os="mac" role="tabpanel">
       <ol class="steps">
         <li>
-          <strong>Download the app</strong> from the button above and drop the <code>leads_gen</code> file into your <code>Applications</code> folder (or anywhere you like — <code>~/Downloads</code> works too).
+          <strong>From the <a href="YOUR_GOOGLE_DRIVE_LINK" target="_blank" rel="noopener">Drive folder</a>, download the macOS build</strong> (the file named <code>leads_gen</code> — no extension). Drop it into your <code>Applications</code> folder (or anywhere you like — <code>~/Downloads</code> works too).
         </li>
         <li>
           <strong>First launch — dismiss the Gatekeeper warning.</strong> Because we don't code-sign the binary yet, macOS will refuse to open it on first double-click. Instead, <em>right-click</em> the file → <b>Open</b> → confirm the dialog. You only need to do this once.
@@ -630,14 +630,42 @@
     </div>
 
     <div class="os-panel" data-os="win" role="tabpanel">
-      <div class="notice">
-        <strong>Windows build coming soon.</strong> If you need a Windows binary today, email <a href="mailto:shehry3894@gmail.com">shehry3894@gmail.com</a> with your Windows version (10, 11, ARM/x64) and we'll get one to you.
-      </div>
+      <ol class="steps">
+        <li>
+          <strong>From the <a href="YOUR_GOOGLE_DRIVE_LINK" target="_blank" rel="noopener">Drive folder</a>, download the Windows build</strong> (<code>leads_gen.exe</code>). Save it to a folder of your choice — <code>Documents\leads_gen\</code> works well; keep the <code>.exe</code> in its own folder so the app's <code>logs/</code>, <code>leads_gen_output/</code>, and <code>license.key</code> live next to it.
+        </li>
+        <li>
+          <strong>First launch — dismiss the SmartScreen warning.</strong> Because we don't code-sign the binary yet, Windows Defender SmartScreen may say <em>"Windows protected your PC"</em>. Click <b>More info</b> → <b>Run anyway</b>. You only need to do this once.
+        </li>
+        <li>
+          <strong>The app opens in your browser</strong> at <code>http://localhost:8501</code> (a small Command Prompt window will also appear — that's the app server; keep it running).
+        </li>
+        <li>
+          <strong>You're in trial mode by default</strong> — 3 results per scrape. To unlock the full cap, follow <a href="#license">Activate your license</a> below.
+        </li>
+      </ol>
     </div>
 
     <div class="os-panel" data-os="linux" role="tabpanel">
-      <div class="notice">
-        <strong>Linux build coming soon.</strong> If you need a Linux binary today, email <a href="mailto:shehry3894@gmail.com">shehry3894@gmail.com</a> with your distro + architecture (Ubuntu 22.04 x64, Fedora ARM, etc.) and we'll get one to you.
+      <ol class="steps">
+        <li>
+          <strong>From the <a href="YOUR_GOOGLE_DRIVE_LINK" target="_blank" rel="noopener">Drive folder</a>, download the Linux build</strong> (the file named <code>leads_gen</code> — no extension) into a folder of your choice, e.g. <code>~/leads_gen/</code>.
+        </li>
+        <li>
+          <strong>Mark it executable</strong> (once, right after download):
+          <pre><code>chmod +x ~/leads_gen/leads_gen</code></pre>
+        </li>
+        <li>
+          <strong>Run it</strong> from a terminal:
+          <pre><code>~/leads_gen/leads_gen</code></pre>
+          The terminal stays open (that's the app server; keep it running) and the app opens in your default browser at <code>http://localhost:8501</code>.
+        </li>
+        <li>
+          <strong>You're in trial mode by default</strong> — 3 results per scrape. To unlock the full cap, follow <a href="#license">Activate your license</a> below.
+        </li>
+      </ol>
+      <div class="notice" style="margin-top: 16px;">
+        <strong>Distro compatibility.</strong> The Linux build is compiled on Ubuntu 22.04 (x64) and works on most recent glibc-based distros. If it fails to launch on yours (older glibc, musl-based distros like Alpine, or ARM), email <a href="mailto:shehry3894@gmail.com">shehry3894@gmail.com</a> with your distro + <code>uname -a</code> output.
       </div>
     </div>
   </section>
@@ -681,7 +709,7 @@
 
     <div class="callout warning">
       <strong>Machine-bound &amp; non-transferable</strong>
-      A license issued for machine A won't validate on machine B. If you switch computers (new Mac, reinstall macOS, etc.) you'll need a fresh license — send us the new fingerprint and we'll issue one.
+      A license issued for machine A won't validate on machine B. If you switch computers (new laptop, reinstalled OS, wiped Windows/macOS/Linux install, etc.) you'll need a fresh license — send us the new fingerprint and we'll issue one.
     </div>
   </section>
 
@@ -746,12 +774,24 @@
 
     <div class="qa">
       <details>
-        <summary>The app won't open — macOS says it's "damaged" or "from an unidentified developer"</summary>
+        <summary>The app won't open — my OS is blocking an unsigned binary</summary>
         <div class="body">
-          <p>This is Gatekeeper — macOS's default block on unsigned binaries. Two fixes:</p>
-          <p><strong>Option 1 (easier):</strong> Right-click the <code>leads_gen</code> file in Finder → <b>Open</b> → confirm the dialog. This only needs doing once.</p>
-          <p><strong>Option 2 (Terminal):</strong> Clear the quarantine flag with this command (adjust the path to where the file lives):</p>
-          <pre><code>xattr -d com.apple.quarantine ~/Downloads/leads_gen</code></pre>
+          <p>All three builds are currently unsigned, so every OS puts up a first-launch warning. Once you approve it, you never see it again.</p>
+          <p><strong>macOS</strong> (Gatekeeper — <em>"damaged"</em> or <em>"unidentified developer"</em>):</p>
+          <ul>
+            <li>Right-click the <code>leads_gen</code> file in Finder → <b>Open</b> → confirm the dialog, <em>or</em></li>
+            <li>Terminal: <code>xattr -d com.apple.quarantine ~/Downloads/leads_gen</code> (adjust the path).</li>
+          </ul>
+          <p><strong>Windows</strong> (SmartScreen — <em>"Windows protected your PC"</em>):</p>
+          <ul>
+            <li>Click <b>More info</b> in the blue dialog → <b>Run anyway</b>.</li>
+            <li>If your antivirus quarantines the file, add the folder to its exclusions.</li>
+          </ul>
+          <p><strong>Linux</strong> (<em>"permission denied"</em> or nothing happens on double-click):</p>
+          <ul>
+            <li>Make it executable: <code>chmod +x ~/leads_gen/leads_gen</code></li>
+            <li>Run from a terminal to see error output: <code>~/leads_gen/leads_gen</code></li>
+          </ul>
         </div>
       </details>
 
@@ -760,7 +800,7 @@
         <div class="body">
           <p>The <code>license.key</code> file has to live <strong>right next to the app binary</strong>, not in your home folder or anywhere else. Check:</p>
           <ul>
-            <li>File is named exactly <code>license.key</code> — not <code>license.key.txt</code> (macOS Finder sometimes hides the <code>.txt</code>).</li>
+            <li>File is named exactly <code>license.key</code> — not <code>license.key.txt</code>. Both macOS Finder and Windows Explorer hide known extensions by default, so a stray <code>.txt</code> can be invisible.</li>
             <li>File is inside a folder called <code>leads_gen/</code> next to the app.</li>
             <li>File contains just the license key on a single line — no extra whitespace, no line wrapping.</li>
           </ul>
@@ -774,8 +814,8 @@
           <p>Licenses are locked to the machine that produced the fingerprint. This message means the license was issued for a different computer.</p>
           <p>Common causes:</p>
           <ul>
-            <li>You copied the license from another Mac.</li>
-            <li>You reinstalled macOS or restored from a backup that changed the machine ID.</li>
+            <li>You copied the license from another computer.</li>
+            <li>You reinstalled your OS or restored from a backup that changed the machine ID.</li>
             <li>You're running the app inside a VM whose hardware ID changes between boots.</li>
           </ul>
           <p><strong>Fix:</strong> grab the new fingerprint from the sidebar and email us — we'll issue a fresh license.</p>
@@ -848,7 +888,7 @@
       <details>
         <summary>The app is running but the browser tab never opens</summary>
         <div class="body">
-          <p>Sometimes macOS blocks the auto-open. Open your browser manually and go to <a href="http://localhost:8501" target="_blank" rel="noopener">http://localhost:8501</a>. If that also fails, another program is using port 8501 — quit any other Streamlit apps and try again.</p>
+          <p>Some OSes (macOS in particular) block the auto-open. Open your browser manually and go to <a href="http://localhost:8501" target="_blank" rel="noopener">http://localhost:8501</a>. If that also fails, another program is using port 8501 — quit any other Streamlit apps (or reboot) and try again.</p>
         </div>
       </details>
 
