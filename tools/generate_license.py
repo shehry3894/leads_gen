@@ -19,6 +19,7 @@ Usage:
 import argparse
 import logging
 import sys
+import uuid
 from pathlib import Path
 
 # Add parent directory to path to import the leads_gen package when this
@@ -33,14 +34,12 @@ logger = logging.getLogger(__name__)
 
 
 def validate_fingerprint(fingerprint: str) -> bool:
-    """Validate that fingerprint is a valid SHA-256 hash."""
-    if len(fingerprint) != 64:
-        return False
+    """Validate that fingerprint is a valid UUID (in any accepted form)."""
     try:
-        int(fingerprint, 16)  # Check if it's valid hex
-        return True
-    except ValueError:
+        uuid.UUID(fingerprint)
+    except (ValueError, AttributeError, TypeError):
         return False
+    return True
 
 
 def generate_trial_license_key(fingerprint: str, days: int, max_results: int) -> str:
@@ -60,8 +59,9 @@ def save_license_to_file(license_key: str, fingerprint: str, output_dir: str = "
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
 
-    # Create filename from fingerprint prefix
-    filename = f"license_{fingerprint[:16]}.txt"
+    # Create filename from fingerprint prefix (strip hyphens for a
+    # filesystem-friendly slice).
+    filename = f"license_{fingerprint.replace('-', '')[:16]}.txt"
     filepath = output_path / filename
 
     with open(filepath, "w") as f:
@@ -78,21 +78,25 @@ def main():
         epilog="""
 Examples:
   # Generate 7-day trial license
-  python generate_license.py --fingerprint abc123... --days 7 --max-results 50
+  python generate_license.py --fingerprint 5172A6D1-D8D1-525D-B275-C891BB687412 --days 7 --max-results 50
 
   # Generate 12-month full license
-  python generate_license.py --fingerprint abc123... --months 12 --max-results 5000
+  python generate_license.py --fingerprint 5172A6D1-D8D1-525D-B275-C891BB687412 --months 12 --max-results 5000
 
   # Generate license with specific expiry date (recommended)
-  python generate_license.py --fingerprint abc123... --expiry-date 2026-12-31 --max-results 1000
+  python generate_license.py --fingerprint 5172A6D1-D8D1-525D-B275-C891BB687412 --expiry-date 2026-12-31 --max-results 1000
 
   # Generate license and save to file
-  python generate_license.py --fingerprint abc123... --expiry-date 2027-06-30 --max-results 1000 --save
+  python generate_license.py --fingerprint 5172A6D1-D8D1-525D-B275-C891BB687412 --expiry-date 2027-06-30 --max-results 1000 --save
         """,
     )
 
     parser.add_argument(
-        "--fingerprint", required=True, help="Machine fingerprint (64-character SHA-256 hash)"
+        "--fingerprint",
+        required=True,
+        help="Machine fingerprint — the customer's hardware UUID "
+        "(e.g. '5172A6D1-D8D1-525D-B275-C891BB687412'). Accepts any "
+        "case / with or without hyphens; normalized internally.",
     )
 
     # Time period (mutually exclusive)
@@ -126,7 +130,10 @@ Examples:
 
     # Validate fingerprint
     if not validate_fingerprint(args.fingerprint):
-        logger.error("Invalid fingerprint format. Must be a 64-character SHA-256 hash (hex)")
+        logger.error(
+            "Invalid fingerprint format. Must be a valid UUID "
+            "(e.g. '5172A6D1-D8D1-525D-B275-C891BB687412')."
+        )
         sys.exit(1)
 
     # Validate max results
@@ -221,7 +228,7 @@ if __name__ == "__main__":
         print("=" * 60)
 
         # Example usage
-        test_fingerprint = "0578690205f040f6d8a88f43d567915696d395380faec3ad41c1da049a8532d7"
+        test_fingerprint = "5172A6D1-D8D1-525D-B275-C891BB687412"
 
         print("\nExample 1: Trial License")
         trial_key = generate_trial_license_key(test_fingerprint, 14, 100)

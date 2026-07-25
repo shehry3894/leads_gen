@@ -38,7 +38,7 @@ help:
 	@echo "  quality        Auto-fix format + lint, then run typecheck + tests (one-shot dev command)"
 	@echo "  fingerprint    Print the machine fingerprint for licensing"
 	@echo "  license        (Issuer-only) Generate a license key for a customer."
-	@echo "                 Required: FINGERPRINT=<64-char-hash> MAX_RESULTS_PER_RUN=<int>"
+	@echo "                 Required: FINGERPRINT=<uuid> MAX_RESULTS_PER_RUN=<int>"
 	@echo "                 Pick one duration: DAYS=<int> | MONTHS=<int> | EXPIRY_DATE=YYYY-MM-DD"
 	@echo "                 Optional: TEST_DECODE=1 (verify the key round-trips before printing)"
 	@echo "  build          Build the standalone GUI executable"
@@ -99,13 +99,13 @@ fingerprint:
 # with the distributed binary. Never expose this target on a customer machine.
 #
 # Usage:
-#   make license FINGERPRINT=abc123... MAX_RESULTS_PER_RUN=500 DAYS=30
-#   make license FINGERPRINT=abc123... MAX_RESULTS_PER_RUN=5000 MONTHS=12
-#   make license FINGERPRINT=abc123... MAX_RESULTS_PER_RUN=1000 EXPIRY_DATE=2027-06-30
-#   make license FINGERPRINT=abc123... MAX_RESULTS_PER_RUN=500 DAYS=30 TEST_DECODE=1
+#   make license FINGERPRINT=5172A6D1-D8D1-525D-B275-C891BB687412 MAX_RESULTS_PER_RUN=500 DAYS=30
+#   make license FINGERPRINT=5172A6D1-D8D1-525D-B275-C891BB687412 MAX_RESULTS_PER_RUN=5000 MONTHS=12
+#   make license FINGERPRINT=5172A6D1-D8D1-525D-B275-C891BB687412 MAX_RESULTS_PER_RUN=1000 EXPIRY_DATE=2027-06-30
+#   make license FINGERPRINT=5172A6D1-D8D1-525D-B275-C891BB687412 MAX_RESULTS_PER_RUN=500 DAYS=30 TEST_DECODE=1
 license:
-	@if [ -z "$(FINGERPRINT)" ]; then echo "Error: FINGERPRINT is required. e.g. make license FINGERPRINT=<64-char-hash> MAX_RESULTS_PER_RUN=500 DAYS=30"; exit 1; fi
-	@if [ -z "$(MAX_RESULTS_PER_RUN)" ]; then echo "Error: MAX_RESULTS_PER_RUN is required. e.g. make license FINGERPRINT=<hash> MAX_RESULTS_PER_RUN=500 DAYS=30"; exit 1; fi
+	@if [ -z "$(FINGERPRINT)" ]; then echo "Error: FINGERPRINT is required. e.g. make license FINGERPRINT=<uuid> MAX_RESULTS_PER_RUN=500 DAYS=30"; exit 1; fi
+	@if [ -z "$(MAX_RESULTS_PER_RUN)" ]; then echo "Error: MAX_RESULTS_PER_RUN is required. e.g. make license FINGERPRINT=<uuid> MAX_RESULTS_PER_RUN=500 DAYS=30"; exit 1; fi
 	@if [ -z "$(DAYS)$(MONTHS)$(EXPIRY_DATE)" ]; then echo "Error: pick one of DAYS=<int>, MONTHS=<int>, or EXPIRY_DATE=YYYY-MM-DD"; exit 1; fi
 	$(PYTHON) tools/generate_license.py \
 		--fingerprint $(FINGERPRINT) \

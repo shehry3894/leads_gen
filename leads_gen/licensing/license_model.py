@@ -6,6 +6,7 @@ validation logic for license parameters.
 """
 
 import logging
+import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -19,7 +20,10 @@ class LicenseData:
     License data structure for machine-bound, time-limited licensing.
 
     Attributes:
-        fingerprint: Hashed machine fingerprint (SHA-256, 64 chars)
+        fingerprint: OS hardware UUID (canonical UPPERCASE with hyphens,
+            36 chars — e.g. ``5172A6D1-D8D1-525D-B275-C891BB687412``).
+            Any input format uuid.UUID accepts (with/without hyphens,
+            any case) is normalized in __post_init__.
         expiry_date: License expiration date (ISO format: YYYY-MM-DD)
         max_results_per_run: Maximum number of results allowed per scraping session
         version: License format version for future compatibility
@@ -42,9 +46,17 @@ class LicenseData:
         if self.features is None:
             self.features = {}
 
-        # Validate fingerprint
-        if not self.fingerprint or len(self.fingerprint) != 64:
-            raise ValueError("Fingerprint must be a 64-character SHA-256 hash")
+        # Validate + normalize fingerprint (accept any form uuid.UUID
+        # takes; store in canonical UPPERCASE hyphenated form).
+        if not self.fingerprint:
+            raise ValueError("Fingerprint is required")
+        try:
+            self.fingerprint = str(uuid.UUID(self.fingerprint)).upper()
+        except (ValueError, AttributeError, TypeError) as e:
+            raise ValueError(
+                f"Fingerprint must be a valid UUID "
+                f"(e.g. '5172A6D1-D8D1-525D-B275-C891BB687412'): {e}"
+            ) from e
 
         # Validate dates
         try:
@@ -101,13 +113,21 @@ class LicenseData:
         """
         Check if provided fingerprint matches license fingerprint.
 
+        Normalizes the input before comparing, so callers can pass a UUID
+        in any form (with/without hyphens, any case) and it'll compare
+        equal to the canonical form stored on this license.
+
         Args:
-            fingerprint: Machine fingerprint to check
+            fingerprint: Machine fingerprint (UUID) to check
 
         Returns:
             True if fingerprints match, False otherwise
         """
-        return self.fingerprint == fingerprint
+        try:
+            normalized = str(uuid.UUID(fingerprint)).upper()
+        except (ValueError, AttributeError, TypeError):
+            return False
+        return self.fingerprint == normalized
 
     def __repr__(self) -> str:
         """String representation (safe for logging)."""
@@ -202,8 +222,8 @@ if __name__ == "__main__":
     print("License Data Model Test")
     print("=" * 60)
 
-    # Test fingerprint (example)
-    test_fingerprint = "a" * 64
+    # Test fingerprint (example UUID)
+    test_fingerprint = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"
 
     # Create trial license
     print("\n1. Creating Trial License:")

@@ -4,7 +4,7 @@ Machine-bound, time-limited, offline licensing. No internet, no phone-home, no l
 
 ## How it works
 
-1. **Fingerprint** — [leads_gen/licensing/fingerprint.py](../../leads_gen/licensing/fingerprint.py) hashes MAC + system UUID + hostname into a 64-char SHA-256.
+1. **Fingerprint** — [leads_gen/licensing/fingerprint.py](../../leads_gen/licensing/fingerprint.py) reads the OS hardware UUID (macOS `IOPlatformUUID` via `ioreg`, Windows SMBIOS UUID via `wmic`, Linux SMBIOS UUID from `/sys/class/dmi/id/product_uuid` with `/etc/machine-id` fallback), normalizes it to canonical UPPERCASE hyphenated form (e.g. `5172A6D1-D8D1-525D-B275-C891BB687412`), and returns it as the fingerprint the license binds to. Fails hard (`RuntimeError`) if no hardware ID is available — no random fallback.
 2. **Issuance** — [tools/generate_license.py](../../tools/generate_license.py) (developer-only, holds `SECRET_KEY`) serializes a `LicenseData` dataclass, appends a checksum, XOR-encrypts with `SHA256(SECRET_KEY)`, base64-encodes.
 3. **Activation** — the user writes the license key to `leads_gen/license.key`.
 4. **Validation** — [leads_gen/licensing/license_manager.py](../../leads_gen/licensing/license_manager.py) decodes on startup, checks fingerprint match + expiry + result limit.
@@ -39,15 +39,15 @@ Prints active status, days remaining, and max-results cap. Or launch the UI — 
 ```bash
 # 30-day trial, 50 max results
 uv run python tools/generate_license.py \
-  --fingerprint <64-char-hash> --days 30 --max-results 50
+  --fingerprint <uuid> --days 30 --max-results 50
 
 # 12-month full license, 5000 max results
 uv run python tools/generate_license.py \
-  --fingerprint <64-char-hash> --months 12 --max-results 5000
+  --fingerprint <uuid> --months 12 --max-results 5000
 
 # Explicit expiry date
 uv run python tools/generate_license.py \
-  --fingerprint <64-char-hash> --expiry-date 2027-06-30 --max-results 1000
+  --fingerprint <uuid> --expiry-date 2027-06-30 --max-results 1000
 
 # Add --test-decode to verify the key round-trips before sending
 ```
@@ -85,7 +85,7 @@ uv run python main.py --query "gyms in NYC" --max-results 10 --no-license
 
 **Protected**
 - License keys are opaque (encrypted + checksummed) — users can't hand-craft valid keys without `SECRET_KEY`.
-- Fingerprints are SHA-256 hashes — raw MAC/hostname is never logged or transmitted.
+- Fingerprints are the machine's hardware UUID (already-public identifier, readable by any local process — see `system_profiler SPHardwareDataType` on macOS or `wmic csproduct get UUID` on Windows). No secret material is transmitted.
 - License data includes an integrity checksum — bit-flipping produces a hard failure, not silent misuse.
 - The `SECRET_KEY` never ships with the app.
 
@@ -98,7 +98,7 @@ uv run python main.py --query "gyms in NYC" --max-results 10 --no-license
 
 | Path | Role |
 |---|---|
-| [leads_gen/licensing/fingerprint.py](../../leads_gen/licensing/fingerprint.py) | Fingerprint generation (SHA-256 of MAC + UUID + hostname) |
+| [leads_gen/licensing/fingerprint.py](../../leads_gen/licensing/fingerprint.py) | Fingerprint generation (HMAC-SHA256 of the OS hardware UUID) |
 | [leads_gen/licensing/license_model.py](../../leads_gen/licensing/license_model.py) | `LicenseData` dataclass + validation |
 | [leads_gen/licensing/license_codec.py](../../leads_gen/licensing/license_codec.py) | `encode_license` / `decode_license` (XOR + base64) |
 | [leads_gen/licensing/license_manager.py](../../leads_gen/licensing/license_manager.py) | `LicenseManager` — loads, validates, enforces |

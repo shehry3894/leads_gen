@@ -27,11 +27,19 @@ def project_root() -> Path:
 
 @pytest.fixture
 def machine_fingerprint() -> str:
-    """Real fingerprint for this machine — used by license tests that need
-    a key the LicenseManager will accept."""
+    """Real fingerprint (hardware UUID) for this machine — used by
+    license tests that need a key the LicenseManager will accept."""
     from leads_gen.licensing.fingerprint import generate_machine_fingerprint
 
     return generate_machine_fingerprint()
+
+
+@pytest.fixture
+def wrong_fingerprint() -> str:
+    """A syntactically-valid UUID that won't match any real machine.
+    Used by tests that need to prove the manager rejects licenses issued
+    for a different machine."""
+    return "00000000-0000-0000-0000-000000000000"
 
 
 @pytest.fixture

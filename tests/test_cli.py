@@ -74,8 +74,8 @@ class TestLicenseGate:
         assert "LICENSE REQUIRED" in result.stdout
         assert "Invalid license" in result.stdout
 
-    def test_wrong_machine_license_rejected(self, real_license_key_file):
-        wrong = create_trial_license("f" * 64, days=7, max_results=10)
+    def test_wrong_machine_license_rejected(self, real_license_key_file, wrong_fingerprint):
+        wrong = create_trial_license(wrong_fingerprint, days=7, max_results=10)
         real_license_key_file.write_text(encode_license(wrong))
 
         result = _run(["--query", "x", "--max-results", "3"])

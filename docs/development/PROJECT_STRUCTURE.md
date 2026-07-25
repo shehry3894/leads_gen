@@ -19,7 +19,7 @@ leads_gen/
 │   ├── data_normalization.py  process_scraped_data(), deduplicate_dataframe(), CANONICAL_COLUMNS
 │   └── demo_data.py           get_demo_leads() — canned data for TESTING mode
 ├── licensing/
-│   ├── fingerprint.py       generate_machine_fingerprint() — SHA-256 of MAC + system UUID + hostname
+│   ├── fingerprint.py       generate_machine_fingerprint() — returns the OS hardware UUID (ioreg / wmic / DMI), canonical UPPERCASE
 │   ├── license_model.py     LicenseData dataclass
 │   ├── license_codec.py     encode_license() / decode_license() — XOR + base64
 │   └── license_manager.py   LicenseManager — loads leads_gen/license.key, validates, enforces
