@@ -26,7 +26,8 @@ uv run python main.py --query "hotels in Miami" --max-results all
 # Show the machine fingerprint (needed to generate a license)
 make fingerprint
 
-# Generate a license (developer-only tool; not bundled)
+# Generate a license (developer-only tool; not bundled). Preferred: use `make license`.
+make license FINGERPRINT=<hash> MAX_RESULTS_PER_RUN=500 DAYS=30
 uv run python tools/generate_license.py --fingerprint <hash> --days 30 --max-results 500
 
 # Activate a license
@@ -48,9 +49,9 @@ There is no configured lint or unit-test runner. `tests/test_scraper.py` is an e
 
 Three flags in [leads_gen/config/settings.py](leads_gen/config/settings.py) materially change behavior and are worth knowing before debugging:
 
-- `TRIAL = True` — **caps `scroll_results` to 3 businesses regardless of `--max-results`**. This overrides both the CLI arg and license limits at the scroll stage and is the usual reason "why did I only get 3 results". Flip to `False` for real runs.
+- `TRIAL` — env-controlled (`LEADS_GEN_TRIAL=true`), default `false`. When on, **caps `scroll_results` to 3 businesses regardless of `--max-results`** — overrides both the CLI arg and license limits at the scroll stage. Dev-only fast switch. Customer builds must ship with this off (the default).
 - `TESTING = False` — when `True`, `main.py` skips Selenium entirely and returns `get_demo_leads()` (canned data). Useful for exercising the normalization/output pipeline without a browser.
-- `HEADLESS_MODE` — env var, default `true`. Set `HEADLESS_MODE=false` to see the browser (needed when Google Maps selectors break).
+- `HEADLESS_MODE` — env var, default `false`. Chrome runs visibly by default because Google Maps throttles headless sessions (smaller scroll feed, "limited view" panel). Set `HEADLESS_MODE=true` for automated / server runs where the yield drop is acceptable.
 
 `WAIT_CONFIG` in the same file centralizes Selenium timeouts and retry counts consumed by `SmartWait`.
 
@@ -62,7 +63,7 @@ The scrape flow is a linear pipeline; each stage is a separate module and can be
 
 1. `scraper.driver.start_driver` — builds a Chrome WebDriver via `webdriver-manager`, honoring `HEADLESS_MODE`. Includes a `resource_path()` helper for PyInstaller-frozen builds.
 2. `scraper.search.search_maps` — navigates to Google Maps, dismisses cookie consent, zooms the page out (90→67%) via JS to fit more results, tries a list of search-box selectors (Google's DOM is unstable).
-3. `scraper.scroll.scroll_results` — scrolls the `div[role="feed"]` sidebar until either `max_results` is reached or five consecutive scrolls produce no new `.Nv2PK` cards. **This function unconditionally applies the `TRIAL=3` cap.**
+3. `scraper.scroll.scroll_results` — scrolls the `div[role="feed"]` sidebar until either `max_results` is reached or five consecutive scrolls produce no new `.Nv2PK` cards. **When `TRIAL` is on (env `LEADS_GEN_TRIAL=true`), this function forces the cap to 3** regardless of `max_results`.
 4. `scraper.scrape.scrape_business_data` — iterates the collected list cards. For each card it: (a) reads the expected name from the list item *before* clicking, (b) clicks and waits for the detail panel `h1.DUwDvf` to display the expected name (defense against Google returning a stale "Results" panel), (c) tries multiple XPath fallbacks per field (address / phone / website / rating / review count), (d) if the "website" URL is actually a social link it's rerouted into the matching social column, otherwise `extract_social_and_email_links` fetches the site with `requests` and regexes out socials + emails.
 5. `core.data_normalization.process_scraped_data` — converts to DataFrame, enforces `CANONICAL_COLUMNS` schema and order, sanitizes strings for Excel, then deduplicates by website URL (fallback to name+address).
 6. Output: CLI writes to `leads_gen/output/`, Streamlit UI writes to `leads_gen/leads_gen_output/` (via `utils.paths.get_output_dir` vs `get_ui_output_dir`). If the target `.xlsx` already exists, both entry points **merge and deduplicate with the existing file** rather than overwriting.

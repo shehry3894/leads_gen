@@ -139,60 +139,48 @@ Examples:
     print("License Key Generator")
     print("=" * 60)
 
-    # Handle expiry date parameter
+    # Normalise all three input modes (--days, --months, --expiry-date) to a
+    # single day count, then classify TRIAL vs FULL by duration inside
+    # `create_license_from_days`. Old behaviour classified by which flag was
+    # used, so `--days 365` was labelled Trial and `--months 1` was labelled
+    # Full — misleading for the customer's sidebar display.
+    from datetime import datetime
+
     if args.expiry_date:
-        from datetime import datetime
-
         try:
-            # Parse the expiry date
             expiry_date = datetime.strptime(args.expiry_date, "%Y-%m-%d").date()
-            today = datetime.now().date()
-
-            # Validate expiry date is in the future
-            if expiry_date <= today:
-                logger.error(
-                    f"Expiry date must be in the future. Given: {expiry_date}, Today: {today}"
-                )
-                sys.exit(1)
-
-            # Calculate days until expiry
-            days_until_expiry = (expiry_date - today).days
-
-            # Determine license type based on duration
-            if days_until_expiry <= 30:
-                # Trial license (30 days or less)
-                print("\nGenerating TRIAL license:")
-                print(f"  Fingerprint: {args.fingerprint[:16]}...")
-                print(f"  Expiry Date: {expiry_date}")
-                print(f"  Duration: {days_until_expiry} days")
-                print(f"  Max Results: {args.max_results}")
-                license_key = generate_trial_license_key(
-                    args.fingerprint, days_until_expiry, args.max_results
-                )
-            else:
-                # Full license (more than 30 days)
-                months = days_until_expiry // 30  # Approximate months
-                print("\nGenerating FULL license:")
-                print(f"  Fingerprint: {args.fingerprint[:16]}...")
-                print(f"  Expiry Date: {expiry_date}")
-                print(f"  Duration: {days_until_expiry} days (~{months} months)")
-                print(f"  Max Results: {args.max_results}")
-                license_key = generate_full_license_key(args.fingerprint, months, args.max_results)
         except ValueError as e:
             logger.error(f"Invalid date format. Use YYYY-MM-DD (e.g., 2026-12-31). Error: {e}")
             sys.exit(1)
+        today = datetime.now().date()
+        if expiry_date <= today:
+            logger.error(f"Expiry date must be in the future. Given: {expiry_date}, Today: {today}")
+            sys.exit(1)
+        total_days = (expiry_date - today).days
+        duration_summary = f"{total_days} days (until {expiry_date})"
     elif args.days:
-        print("\nGenerating TRIAL license:")
-        print(f"  Fingerprint: {args.fingerprint[:16]}...")
-        print(f"  Duration: {args.days} days")
-        print(f"  Max Results: {args.max_results}")
-        license_key = generate_trial_license_key(args.fingerprint, args.days, args.max_results)
+        total_days = args.days
+        duration_summary = f"{args.days} days"
     else:
-        print("\nGenerating FULL license:")
-        print(f"  Fingerprint: {args.fingerprint[:16]}...")
-        print(f"  Duration: {args.months} months")
-        print(f"  Max Results: {args.max_results}")
-        license_key = generate_full_license_key(args.fingerprint, args.months, args.max_results)
+        # `create_full_license` uses months*30, and we keep that convention
+        # here so --months output is byte-identical to the historic behaviour.
+        total_days = args.months * 30
+        duration_summary = f"{args.months} months (~{total_days} days)"
+
+    from leads_gen.licensing.license_codec import encode_license
+    from leads_gen.licensing.license_model import (
+        TRIAL_LICENSE_DAY_CUTOFF,
+        create_license_from_days,
+    )
+
+    license_label = "TRIAL" if total_days <= TRIAL_LICENSE_DAY_CUTOFF else "FULL"
+    print(f"\nGenerating {license_label} license:")
+    print(f"  Fingerprint: {args.fingerprint[:16]}...")
+    print(f"  Duration: {duration_summary}")
+    print(f"  Max Results: {args.max_results}")
+
+    license_data = create_license_from_days(args.fingerprint, total_days, args.max_results)
+    license_key = encode_license(license_data)
 
     print(f"\n{'='*60}")
     print("LICENSE KEY:")

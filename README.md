@@ -44,9 +44,9 @@ Env vars honored by the test targets are documented inline in the [Makefile](Mak
 
 Three settings in [leads_gen/config/settings.py](leads_gen/config/settings.py) drive behavior:
 
-- **`TRIAL = True`** — caps the scroll stage at 3 businesses regardless of `--max-results`. Flip to `False` for real runs. This is the usual reason "why did I only get 3 results".
+- **`TRIAL`** — env-controlled (`LEADS_GEN_TRIAL=true`), default `false`. When on, caps the scroll stage at 3 businesses regardless of `--max-results` or license cap — a dev-only fast switch. **Customer builds must ship with this off** (the default).
 - **`TESTING`** — env-controlled (`LEADS_GEN_TESTING=true`). Bypasses Selenium and returns canned demo data. Useful for exercising the normalization/output pipeline without a browser.
-- **`HEADLESS_MODE`** — env-controlled, default `true`. `HEADLESS_MODE=false` shows the browser (needed when Google Maps selectors break).
+- **`HEADLESS_MODE`** — env-controlled, default `false`. Chrome runs visibly by default so Google Maps' bot detection doesn't throttle the scroll feed. Set `HEADLESS_MODE=true` for server / automated runs where the yield drop is acceptable.
 
 `WAIT_CONFIG` in the same file centralizes Selenium timeouts consumed by `SmartWait`.
 

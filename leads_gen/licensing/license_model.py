@@ -171,6 +171,29 @@ def create_full_license(fingerprint: str, months: int = 12, max_results: int = 1
     )
 
 
+TRIAL_LICENSE_DAY_CUTOFF = 30
+
+
+def create_license_from_days(fingerprint: str, total_days: int, max_results: int) -> LicenseData:
+    # Classify by actual duration rather than which CLI flag the issuer used.
+    # Also preserves exact day-count in expiry: `create_full_license` uses a
+    # months*30 approximation that drifts by up to a week for arbitrary day counts.
+    if total_days <= TRIAL_LICENSE_DAY_CUTOFF:
+        return create_trial_license(fingerprint, days=total_days, max_results=max_results)
+    expiry_date = (datetime.now() + timedelta(days=total_days)).strftime("%Y-%m-%d")
+    return LicenseData(
+        fingerprint=fingerprint,
+        expiry_date=expiry_date,
+        max_results_per_run=max_results,
+        features={
+            "trial": False,
+            "social_media_scraping": True,
+            "email_extraction": True,
+            "unlimited_exports": True,
+        },
+    )
+
+
 if __name__ == "__main__":
     """Test the license data model."""
     logging.basicConfig(level=logging.INFO)

@@ -10,9 +10,14 @@ CODE_PATHS := leads_gen tests tools app.py main.py
 # Version is read from leads_gen/version.py, arch from uname. Pure-shell (no
 # Python invocation) so `make help` stays fast. Windows AMD64 normalises to
 # x86_64 so builds across Intel Mac, Linux x64, and Windows x64 share a name.
+#
+# Dots in the version are replaced with dashes for the filename: macOS Finder
+# would otherwise treat "1.0.0" as an unknown ".0" extension and refuse to
+# double-click-launch the binary. Semver stays intact in version.py.
 BUILD_VERSION := $(shell awk -F'"' '/^__version__/ {print $$2}' leads_gen/version.py 2>/dev/null)
+BUILD_VERSION_FILENAME := $(shell echo "$(BUILD_VERSION)" | tr '.' '-')
 BUILD_ARCH := $(shell uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed 's/amd64/x86_64/')
-BUILD_NAME := leads-gen_$(BUILD_ARCH)_$(BUILD_VERSION)
+BUILD_NAME := leads-gen_$(BUILD_ARCH)_$(BUILD_VERSION_FILENAME)
 
 help:
 	@echo "Targets:"
@@ -37,8 +42,8 @@ help:
 	@echo "                 Pick one duration: DAYS=<int> | MONTHS=<int> | EXPIRY_DATE=YYYY-MM-DD"
 	@echo "                 Optional: TEST_DECODE=1 (verify the key round-trips before printing)"
 	@echo "  build          Build the standalone GUI executable"
-	@echo "                 Output: dist/leads-gen_<arch>_<version> (e.g. leads-gen_arm64_1.0.0)"
-	@echo "                 arch/version come from uname -m + leads_gen/version.py"
+	@echo "                 Output: dist/leads-gen_<arch>_<version> (e.g. leads-gen_arm64_1-0-0)"
+	@echo "                 Version dots -> dashes so Finder can double-click launch."
 	@echo "  clean          Remove build/dist artifacts"
 
 install:

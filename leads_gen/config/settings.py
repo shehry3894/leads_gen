@@ -6,8 +6,17 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 # Add headless mode configuration
 # Read from environment variable, default to True (headless mode)
-HEADLESS_MODE = os.getenv("HEADLESS_MODE", "true").lower() in ("true", "1", "yes")
-TRIAL = True  # ✅ Limits to 3 results for quick testing
+# Chrome runs visibly by default — Google Maps' bot detection throttles
+# headless sessions (smaller scroll feed, "limited view" panel), so leaving
+# the browser visible produces ~2-3x more results per query. Set
+# HEADLESS_MODE=true to hide Chrome for automated / server runs where the
+# yield drop is acceptable.
+HEADLESS_MODE = os.getenv("HEADLESS_MODE", "false").lower() in ("true", "1", "yes")
+# Developer fast-cap: forces the scroll stage to stop at 3 results regardless
+# of license or user input. Env-controlled, default OFF. NEVER ship a customer
+# build with this on — customers rely on their license cap being respected.
+# Enable locally with: LEADS_GEN_TRIAL=true make ui
+TRIAL = os.getenv("LEADS_GEN_TRIAL", "false").lower() in ("true", "1", "yes")
 # TESTING=True short-circuits Selenium and returns demo data. Env override
 # lets pytest flip it on in a spawned Streamlit subprocess without editing
 # this file.

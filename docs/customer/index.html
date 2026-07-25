@@ -694,6 +694,13 @@
       <li><strong>Type your query</strong> — anything you'd type into Google Maps. E.g. <code>gyms in New York</code>, <code>dental clinics in Dublin</code>, <code>coffee shops in Brooklyn</code>.</li>
       <li><strong>Set max results.</strong> Bounded by your license cap. In trial mode, capped at 3.</li>
       <li><strong>Click <b>Run</b>.</strong> Progress and per-business logs stream to the sidebar in real time.</li>
+      <li>
+        <strong>A second Chrome window will open</strong> — that's the app driving Google Maps to gather results.
+        <div class="callout warning" style="margin-top: 10px;">
+          <strong>Don't touch the Chrome window while it's working.</strong>
+          Do <b>not</b> close it, do <b>not</b> click inside it, do <b>not</b> navigate anywhere, and do <b>not</b> type in the search bar. If it's in your way, <em>minimize</em> it (yellow button on macOS, <code>_</code> on Windows) — that's safe. Anything else will interrupt the scrape and you'll have to start over. It closes itself automatically when the run finishes.
+        </div>
+      </li>
       <li><strong>Your Excel</strong> lands in a folder called <code>leads_gen_output/</code> right next to the app.</li>
     </ol>
 
@@ -810,6 +817,15 @@
         <summary>"Cannot save Excel" — file is locked or in use</summary>
         <div class="body">
           <p>The output file is open in Excel, Numbers, or LibreOffice. Close the file in the other program, then click <b>Run</b> again. You can spot a locked file by a hidden file called <code>.~lock.filename.xlsx#</code> next to it.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>I accidentally closed / clicked / navigated the Chrome window mid-scrape</summary>
+        <div class="body">
+          <p>The scrape will fail or return partial results — the app relies on that Chrome window staying on the exact page it navigated to. There's no way to recover a run once the window is disturbed.</p>
+          <p><strong>Fix:</strong> click <b>Run</b> again to start a fresh scrape. If the Chrome window is still open but broken, close it manually and re-run — the app will spawn a new one.</p>
+          <p><strong>To avoid this next time:</strong> if the window is in your way, <em>minimize</em> it (yellow button on macOS, <code>_</code> on Windows). Don't close it, don't click inside it, don't navigate — just minimize. It closes itself when the scrape finishes.</p>
         </div>
       </details>
 

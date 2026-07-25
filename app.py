@@ -213,33 +213,44 @@ def get_query_and_limit(disabled=False):
     # In trial mode, always use 3 results
     if st.session_state.trial_mode:
         st.info("🧪 **Trial Mode Active** - Limited to 3 results per search")
-        max_results = 3
         log_once(
             f"trial_mode_query:{query}",
             "info",
             "Trial mode: query=%r, max_results=3 (fixed)",
             query,
         )
-    else:
-        max_input = st.text_input('Max Results (Enter "all" for no limit)', "10", disabled=disabled)
-        max_results = (
-            None if max_input.lower() == "all" else int(max_input) if max_input.isdigit() else None
-        )
+        return query, 3
 
-        if max_input and max_results is None and max_input.lower() != "all":
-            st.error('Please enter a valid number or "all".')
-            log_once(
-                f"invalid_max:{max_input}", "warning", "Invalid max results input: %s", max_input
-            )
-        log_once(
-            f"query:{query}|max:{max_results if max_results is not None else 'all'}",
-            "info",
-            "User input: query=%r, max_results=%s",
-            query,
-            max_results if max_results is not None else "all",
-        )
+    # Bound the input to the license's per-run cap. Prevents users from typing
+    # a large number and silently having it clipped at the scroll stage.
+    license_manager = st.session_state.get("license_manager")
+    license_max_results = license_manager.get_max_results() if license_manager else 0
+    if license_max_results <= 0:
+        # Defensive fallback — the sidebar gate should stop unlicensed non-trial
+        # sessions before we reach this code, but if it doesn't, cap at 3.
+        license_max_results = 3
 
-    return query, max_results
+    default_value = min(10, license_max_results)
+    max_results = st.number_input(
+        f"Max Results (up to {license_max_results} per your license)",
+        min_value=1,
+        max_value=license_max_results,
+        value=default_value,
+        step=1,
+        disabled=disabled,
+        help=(
+            "Bounded by your license's per-run cap. " "Contact support if you need a higher cap."
+        ),
+    )
+    log_once(
+        f"query:{query}|max:{max_results}",
+        "info",
+        "User input: query=%r, max_results=%s (license cap=%s)",
+        query,
+        max_results,
+        license_max_results,
+    )
+    return query, int(max_results)
 
 
 def perform_scraping(query, max_results, headless=True, progress_callback=None):
@@ -530,9 +541,7 @@ def main():
             st.sidebar.markdown(f"**License Type:** {license_type}")
             st.sidebar.markdown(f"**Status:** {status_emoji} {status_label}")
             st.sidebar.markdown(f"**Expires:** {expiry_date}")
-            st.sidebar.markdown(
-                f"**Days Remaining:** :{status_color}[{days_remaining} {day_word}]"
-            )
+            st.sidebar.markdown(f"**Days Remaining:** :{status_color}[{days_remaining} {day_word}]")
             st.sidebar.markdown(f"**Max Results:** {max_results} per run")
 
             # Warning banner when we're inside the red bucket
@@ -594,7 +603,12 @@ def main():
                     st.session_state.license_manager = candidate_manager
                     st.session_state.license_init_success = True
                     st.session_state.license_init_message = "License activated via UI"
-                    logger.info("License activated successfully via UI")
+                    # Auto-clear the UI-level Trial Mode toggle so it can't linger
+                    # from the pre-activation gate page (where users click it to
+                    # bypass the license). Once a real license is in place, the
+                    # 3-result cap is undesirable and confusing.
+                    st.session_state.trial_mode = False
+                    logger.info("License activated successfully via UI; Trial Mode cleared")
                     st.success("✅ License activated!")
                     st.rerun()
 

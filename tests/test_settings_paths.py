@@ -43,12 +43,14 @@ class TestHeadlessModeParsing:
             monkeypatch.delenv("HEADLESS_MODE", raising=False)
             importlib.reload(s)
 
-    def test_unset_defaults_to_true(self, monkeypatch):
+    def test_unset_defaults_to_false(self, monkeypatch):
+        # Default is False so Google Maps doesn't throttle scrapes as headless
+        # bot traffic. Server / automated runs opt into headless via env.
         monkeypatch.delenv("HEADLESS_MODE", raising=False)
         import leads_gen.config.settings as s
 
         importlib.reload(s)
-        assert s.HEADLESS_MODE is True
+        assert s.HEADLESS_MODE is False
 
 
 class TestWaitConfig:
